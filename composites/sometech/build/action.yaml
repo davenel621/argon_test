@@ -1,0 +1,347 @@
+name: 'SomeTech Build Composite Action'
+description: 'A SomeTech composite action for build and scan operations'
+
+inputs:
+  # Comprehensive inputs
+  failOnVulns:
+    description: 'Fail the build on vulnerabilities.'
+    required: false
+    default: 'true'
+  generateSbom:
+    description: 'Generate SBOM during build.'
+    required: false
+    default: 'true'
+  packageFeed:
+    description: 'Package Feed to use'
+    required: false
+    default: 'demo-feed'
+  packageManager:
+    description: 'Package manager to use.'
+    required: false
+    default: 'auto'
+  scaTool:
+    description: 'SCA tool to use.'
+    required: false
+    default: 'demo-sca-tool'
+  severityThreshold:
+    description: 'Severity threshold for vulnerabilities.'
+    required: false
+    default: 'medium'
+  sourcePath:
+    description: 'Source path to scan.'
+    required: false
+    default: '**/*'
+  generateSarif:
+    description: 'Generate SARIF output.'
+    required: false
+    default: 'true'
+  languages:
+    description: 'Languages to scan.'
+    required: false
+    default: 'auto'
+  ruleset:
+    description: 'Ruleset to use for SAST.'
+    required: false
+    default: 'default'
+  sastTool:
+    description: 'SAST tool to use.'
+    required: false
+    default: 'semgrep'
+  testPattern:
+    description: 'Pattern to identify test files.'
+    required: false
+    default: '**/*test*'
+
+runs:
+  using: "composite"
+  steps:
+    - name: 🚀 SomeTech Build Process Start
+      run: |
+        echo "::notice title=SomeTech Build::Starting SomeTech Build and Security Scan Process"
+        echo "📋 Total Steps: 15 main steps + additional validation steps"
+        echo "🔧 Source Path: ${{ inputs.sourcePath }}"
+        echo "🛡️ Security Tools: SCA (${{ inputs.scaTool }}) + SAST (${{ inputs.sastTool }})"
+        echo ""
+      shell: pwsh
+
+    - name: Install Build Tools
+      run: |
+        echo "::group::🔨 Step 1/15: Installing SomeTech Build Tools"
+        echo "============================================="
+        echo "Step 1/15: Installing SomeTech Build Tools"
+        echo "============================================="
+        echo "Would execute - Install Build Tools"
+        echo "Installing sometech build and deployment tools"
+        echo "Tool installation completed"
+        echo "✅ Build tools installation step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+      
+    - name: Prepare SCA Tool
+      run: |
+        echo "::group::🛡️ Step 2/15: Preparing SCA Tool"
+        echo "============================================="
+        echo "Step 2/15: Preparing SCA Tool"
+        echo "============================================="
+        echo "Would execute: Install/Prepare SCA Tool"
+        echo "SCA Tool: ${{ inputs.scaTool }}"
+        echo "Package Manager: ${{ inputs.packageManager }}"
+        echo "Preparing environment for SCA"      
+        echo "✅ SCA tool preparation step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+      
+    - name: Run SCA Scan
+      run: |
+        echo "::group::🔍 Step 3/15: Running SCA Scan"
+        echo "============================================="
+        echo "Step 3/15: Running SCA Scan"
+        echo "============================================="
+        echo "Would execute: Run SCA Scan"
+        echo "Source path: ${{ inputs.sourcePath }}"
+        echo "SCA Tool: ${{ inputs.scaTool }}"
+        echo "Package Manager: ${{ inputs.packageManager }}"
+        echo "Scanning for known vulnerabilities and license issues"
+        echo "SCA scan completed"
+        echo "✅ SCA scan step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Generate SBOM
+      run: |
+        echo "::group::📋 Step 4/15: Generating SBOM"
+        echo "============================================="
+        echo "Step 4/15: Generating SBOM"
+        echo "============================================="
+        echo "Would execute: Generate SBOM"
+        echo "generateSbom: ${{ inputs.generateSbom }}"
+        echo "Generating Software Bill of Materials (SBOM)"
+        echo "SBOM generation completed"
+        echo "✅ SBOM generation step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Publish SCA Results
+      run: |
+        echo "::group::📤 Step 5/15: Publishing SCA Results"
+        echo "============================================="
+        echo "Step 5/15: Publishing SCA Results"
+        echo "============================================="
+        echo "Would execute: Publish SCA Results"
+        echo "Publishing SCA reports and attaching to build summary"
+        echo "SCA results publication completed"
+        echo "✅ SCA results publication step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Enforce SCA Policy
+      run: |
+        echo "::group::🔒 Step 6/15: Enforcing SCA Policy"
+        echo "============================================="
+        echo "Step 6/15: Enforcing SCA Policy"
+        echo "============================================="
+        echo "Would execute: Enforce SCA Policy"
+        echo "failOnVulns: ${{ inputs.failOnVulns }}"
+        echo "severityThreshold: ${{ inputs.severityThreshold }}"
+        echo "Failing the pipeline if findings >= threshold and failOnVulns=true"
+        echo "Policy enforcement executed"
+        echo "✅ SCA policy enforcement step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Prepare SAST Tool
+      run: |
+        echo "::group::🔧 Step 7/15: Preparing SAST Tool"
+        echo "============================================="
+        echo "Step 7/15: Preparing SAST Tool"
+        echo "============================================="
+        echo "Would execute: Prepare SAST Tool"
+        echo "SAST Tool: ${{ inputs.sastTool }}"
+        echo "Languages: ${{ inputs.languages }}"
+        echo "Ruleset: ${{ inputs.ruleset }}"
+        echo "Preparing environment for SAST"
+        echo "✅ SAST tool preparation step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Run SAST Scan
+      run: |
+        echo "::group::🔍 Step 8/15: Running SAST Scan"
+        echo "============================================="
+        echo "Step 8/15: Running SAST Scan"
+        echo "============================================="
+        echo "Would execute: Run SAST Scan"
+        echo "Source path: ${{ inputs.sourcePath }}"
+        echo "SAST Tool: ${{ inputs.sastTool }}"
+        echo "Languages: ${{ inputs.languages }}"
+        echo "Ruleset: ${{ inputs.ruleset }}"
+        echo "Performing static analysis"
+        echo "SAST scan completed"
+        echo "✅ SAST scan step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Generate SARIF report
+      run: |
+        echo "::group::📄 Step 9/15: Generating SARIF Report"
+        echo "============================================="
+        echo "Step 9/15: Generating SARIF Report"
+        echo "============================================="
+        echo "Would execute: Generate SARIF"
+        echo "generateSarif: ${{ inputs.generateSarif }}"
+        echo "Generating SARIF report for SAST findings"
+        echo "SARIF report generation completed"
+        echo "✅ SARIF report generation step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Publish SAST Results
+      run: |
+        echo "::group::📤 Step 10/15: Publishing SAST Results"
+        echo "============================================="
+        echo "Step 10/15: Publishing SAST Results"
+        echo "============================================="
+        echo "Would execute: Publish SAST Results"
+        echo "Publishing SAST reports and attaching to build summary"
+        echo "SAST results publication completed"
+        echo "✅ SAST results publication step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Enforce SAST Policy
+      run: |
+        echo "::group::🔒 Step 11/15: Enforcing SAST Policy"
+        echo "============================================="
+        echo "Step 11/15: Enforcing SAST Policy"
+        echo "============================================="
+        echo "Would execute: Enforce SAST Policy"
+        echo "failOnVulns: ${{ inputs.failOnVulns }}"
+        echo "severityThreshold: ${{ inputs.severityThreshold }}"
+        echo "Failing the pipeline if findings >= threshold and failOnVulns=true"
+        echo "SAST policy enforcement executed"
+        echo "✅ SAST policy enforcement step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Restore Dependencies
+      run: |
+        echo "::group::📦 Step 12/15: Restoring Dependencies"
+        echo "============================================="
+        echo "Step 12/15: Restoring Dependencies"
+        echo "============================================="
+        echo "Would execute: Restore Dependencies"
+        echo "Source path: ${{ inputs.sourcePath }}"
+        echo "Package feed: ${{ inputs.packageFeed }}"
+        echo "Restoring sometech project dependencies"
+        echo "Dependency restoration completed"
+        echo "✅ Dependencies restoration step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Build Application
+      run: |
+        echo "::group::🏗️ Step 13/15: Building Application"
+        echo "============================================="
+        echo "Step 13/15: Building Application"
+        echo "============================================="
+        echo "Would execute: Build Application"
+        echo "Source path: ${{ inputs.sourcePath }}"
+        echo "Configuration: Release"
+        echo "Creating build output directory"
+        echo "Building sometech application from source"
+        echo "Build completed successfully"
+        echo "✅ Application build step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Run Unit Tests
+      run: |
+        echo "::group::🧪 Step 14/15: Running Unit Tests"
+        echo "============================================="
+        echo "Step 14/15: Running Unit Tests"
+        echo "============================================="
+        echo "Would execute: Run Unit Tests"
+        echo "Source path: ${{ inputs.sourcePath }}"
+        echo "Test pattern: ${{ inputs.testPattern }}"
+        echo "Running sometech unit tests"
+        echo "Unit tests execution completed"
+        echo "✅ Unit tests execution step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Publish Test Results
+      run: |
+        echo "::group::📊 Step 15/15: Publishing Test Results"
+        echo "============================================="
+        echo "Step 15/15: Publishing Test Results"
+        echo "============================================="
+        echo "Would execute: Publish Test Results"
+        echo "Publishing sometech test results and code coverage"
+        echo "Test results publication completed"
+        echo "✅ Test results publication step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: SomeTech Test Validation
+      run: |
+        echo "::group::✅ Additional Step: SomeTech Test Validation"
+        echo "============================================="
+        echo "Additional Step: SomeTech Test Validation"
+        echo "============================================="
+        echo "Would execute: SomeTech Test Validation"
+        echo "Validating sometech test results and coverage"
+        echo "SomeTech test validation completed"
+        echo "✅ SomeTech test validation step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Post-Build Processing
+      run: |
+        echo "::group::🔧 Additional Step: Post-Build Processing"
+        echo "============================================="
+        echo "Additional Step: Post-Build Processing"
+        echo "============================================="
+        echo "Would execute: Post-Build Processing"
+        echo "Performing sometech code signing and validation"
+        echo "Verifying build artifacts"
+        echo "Post-build processing completed"
+        echo "✅ Post-build processing step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Generate SomeTech Manifest
+      run: |
+        echo "::group::📄 Final Step: Generating SomeTech Manifest"
+        echo "============================================="
+        echo "Final Step: Generating SomeTech Manifest"
+        echo "============================================="
+        echo "Would execute: Generate SomeTech Deployment Manifest (Optional)"
+        echo "Creating sometech deployment manifest"
+        echo "Manifest includes build metadata and deployment info"
+        echo "Deployment manifest created successfully"
+        echo "✅ SomeTech manifest generation step completed successfully"
+        echo "::endgroup::"
+        echo ""
+        echo "::notice title=Build Complete::🎉 ALL SOMETECH BUILD STEPS COMPLETED SUCCESSFULLY! 🎉"
+        echo "============================================="
+        echo "🎯 Summary: All 15 core build steps + additional validation steps completed"
+        echo "✅ Security scans passed | ✅ Tests executed | ✅ Build artifacts ready"
+        echo "============================================="
+      shell: pwsh

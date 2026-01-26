@@ -1,0 +1,107 @@
+name: "dotnet-test"
+description: "Composite action to run the repository's run-tests.ps1 with selectable test types"
+inputs:
+  workingDirectory:
+    description: "Working directory for the tests"
+    required: true
+  runAgainstBuildArtifact:
+    description: "Are we running against a build artifact"
+    default: 'false'
+    required: false
+  testType:
+    description: "Which tests to run (All, Unit, Mock, Integration, E2E)"
+    required: false
+    default: "All"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Find File Name for Test DLL
+      id: find_test_dll
+      if: ${{ inputs.runAgainstBuildArtifact != 'false' }}
+      working-directory: ${{ inputs.workingDirectory }}
+      shell: pwsh
+      run: |
+        $testDll = Get-ChildItem -Name "*.Tests.dll" | Select-Object -First 1
+        if ($testDll) {
+          echo "Found test DLL: $testDll"
+          echo "test-dll-name=$testDll" >> $env:GITHUB_OUTPUT
+        } else {
+          Write-Error "No .Tests.dll file found in the working directory"
+          exit 1
+        }
+
+    - name: Run All Tests
+      if: ${{ inputs.testType == 'All' }}
+      working-directory: ${{ inputs.workingDirectory }}
+      shell: pwsh
+      run: |
+        echo "🔄 Running All Tests (Release configuration ONLY)"
+        echo "📋 Note: Tests are enforced to run in Release configuration for consistency"
+        if ("${{ inputs.runAgainstBuildArtifact }}" -ne "false") {
+          dotnet test ${{ steps.find_test_dll.outputs.test-dll-name }}
+        } else {
+          # Use dotnet test without specifying files - it will auto-discover all test projects
+          dotnet test tests/**/*.csproj --configuration Release -o "drop/tests"
+        }
+        echo "✅ Completed All Tests"
+
+    - name: Run Unit Tests
+      if: ${{ inputs.testType == 'Unit' }}
+      working-directory: ${{ inputs.workingDirectory }}
+      shell: pwsh
+      run: |
+        echo "🔄 Running Unit Tests (Release configuration ONLY)"
+        echo "📋 Note: Tests are enforced to run in Release configuration for consistency"
+        if ("${{ inputs.runAgainstBuildArtifact }}" -ne "false") {
+          dotnet test ${{ steps.find_test_dll.outputs.test-dll-name }} --filter "TestType=Unit"
+        } else {
+          # Use dotnet test with filter - it will auto-discover all test projects
+          dotnet test --filter TestType=Unit tests/**/*.csproj --configuration Release -o "drop/tests"
+        }
+        echo "✅ Completed Unit Tests"
+
+    - name: Run Mock Tests
+      if: ${{ inputs.testType == 'Mock' }}
+      working-directory: ${{ inputs.workingDirectory }}
+      shell: pwsh
+      run: |
+        echo "🔄 Running Mock Tests (Release configuration ONLY)"
+        echo "📋 Note: Tests are enforced to run in Release configuration for consistency"
+        if ("${{ inputs.runAgainstBuildArtifact }}" -ne "false") {
+          dotnet test ${{ steps.find_test_dll.outputs.test-dll-name }} --filter "TestType=Mock"
+        } else {
+          # Use dotnet test with filter - it will auto-discover all test projects
+          dotnet test --filter TestType=Mock tests/**/*.csproj --configuration Release -o "drop/tests"
+        }
+        echo "✅ Completed Mock Tests"
+
+    - name: Run Integration Tests
+      if: ${{ inputs.testType == 'Integration' }}
+      working-directory: ${{ inputs.workingDirectory }}
+      shell: pwsh
+      run: |
+        echo "🔄 Running Integration Tests (Release configuration ONLY)"
+        echo "📋 Note: Tests are enforced to run in Release configuration for consistency"
+        if ("${{ inputs.runAgainstBuildArtifact }}" -ne "false") {
+          dotnet test ${{ steps.find_test_dll.outputs.test-dll-name }} --filter "TestType=Integration"
+        } else {
+          # Use dotnet test with filter - it will auto-discover all test projects
+          dotnet test --filter TestType=Integration tests/**/*.csproj --configuration Release -o "drop/tests"
+        }
+        echo "✅ Completed Integration Tests"
+
+    - name: Run E2E Tests
+      if: ${{ inputs.testType == 'E2E' }}
+      working-directory: ${{ inputs.workingDirectory }}
+      shell: pwsh
+      run: |
+        echo "🔄 Running E2E Tests (Release configuration ONLY)"
+        echo "📋 Note: Tests are enforced to run in Release configuration for consistency"
+        if ("${{ inputs.runAgainstBuildArtifact }}" -ne "false") {
+          dotnet test ${{ steps.find_test_dll.outputs.test-dll-name }} --filter "TestType=E2E"
+        } else {
+          # Use dotnet test with filter - it will auto-discover all test projects
+          dotnet test --filter TestType=E2E tests/**/*.csproj --configuration Release -o "drop/tests"
+        }
+        echo "✅ Completed E2E Tests"

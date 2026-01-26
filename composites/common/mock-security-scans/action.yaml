@@ -1,0 +1,39 @@
+name: 'Mock Security Scans'
+description: 'A mock composite action for demonstrating security scans without requiring enterprise tools'
+
+inputs:
+  message-one:
+    description: 'Custom message for the first scan action'
+    required: false
+    default: 'Scan Action One'
+  message-two:
+    description: 'Custom message for the second scan action'
+    required: false
+    default: 'Scan Action Two'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Mock Static Analysis Scan
+      run: |
+        echo "🔍 ${{ inputs.message-one }}"
+        echo "Running static analysis scan..."
+        echo "✅ No critical vulnerabilities found"
+        echo "📊 Scan completed successfully"
+      shell: bash
+      
+    - name: Mock Dependency Scan
+      run: |
+        echo "🔍 ${{ inputs.message-two }}"
+        echo "Running dependency vulnerability scan..."
+        echo "✅ All dependencies are secure"
+        echo "📊 Dependency scan completed"
+      shell: bash
+      
+    - name: Mock Security Summary
+      run: |
+        echo "🛡️ Security Scan Summary"
+        echo "- Static Analysis: PASSED"
+        echo "- Dependency Check: PASSED"
+        echo "- Overall Security Status: ✅ SECURE"
+      shell: bash

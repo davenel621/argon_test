@@ -1,0 +1,99 @@
+---
+config:
+  flowchart:
+    htmlLabels: true
+    curve: basis
+  themeVariables:
+    primaryColor: "#f9f9f9"
+    primaryTextColor: "#333333"
+    primaryBorderColor: "#cccccc"
+    lineColor: "#666666"
+    secondaryColor: "#e8f4f8"
+    tertiaryColor: "#fff2cc"
+---
+flowchart TD
+    %% Initial Development
+    Dev[Developer] --> |1. Publish Feature Branch| Repo[Application Repo]
+    Repo --> |2. GitHub Advanced Security runs Dependabot, CodeQL, and Secret Scanning| Dev
+    Dev --> |3. Submit PR| Repo
+    Repo --> |4. Request Review| Owner[Code Owner]
+    
+    %% Pre-Merge Checks
+    Repo --> PreCheck{Pre-Merge Checks<br/>Branch Rules, Protection Rules}
+    PreCheck --> |Pass| WorkflowTrigger[Trigger Reusable Workflow]
+    PreCheck --> |Fail| RejectPR[❌ Reject PR]
+    
+    %% Workflow Execution
+    WorkflowTrigger --> AutoRepo[Centralized Automation Repo]
+    AutoRepo --> ReusableWF[Reusable Workflow]
+    ReusableWF --> BuildComp[Build Composite]
+    
+    %% Build Process (Clickable Reference)
+    BuildComp --> BuildProcess[🔧 Build Process<br/>15 Steps<br/>📄 Click Here to See Details]
+    BuildProcess --> BuildCheck{Build Success?<br/>Security Scans, Tests, Artifacts}
+    BuildCheck --> |Pass| DeployComp[Deploy Composite]
+    BuildCheck --> |Fail| RejectPR[❌ Reject PR]
+    
+    %% Dev Environment
+    DeployComp --> DevDeploy[🔄 Dev Deployment<br/>11 Steps<br/>📄 Click Here to See Details]
+    DevDeploy --> DeployCheck{Deployment Success?<br/>Health Checks, Smoke Tests}
+    DeployCheck --> |Pass| DevEnv[Dev Environment]
+    DeployCheck --> |Fail| RejectPR[❌ Reject PR]
+    DevEnv --> DevComplete[✅ Dev Complete]
+    
+    %% PR Approval Process
+    DevComplete --> PRApproval{PR Approval}
+    Owner --> |Approve| PRApproval
+    PRApproval --> |Approved| MergePR[Merge to Main]
+    PRApproval --> |Rejected| RejectPR
+    
+    %% Artifact Reuse Note
+    PRApproval -.-> ArtifactNote[Note: Build artifacts from Dev workflow<br/>are saved to workflow run and reused<br/>for all subsequent environment deployments]
+    
+    %% Test Environment (Automatic)
+    MergePR --> TestDeploy[🧪 Test Deployment<br/>11 Steps<br/>📄 Click Here to See Details]
+    TestDeploy --> TestEnv[Test Environment]
+    TestEnv --> TestComplete[✅ Test Complete]
+    
+    %% Staging Environment (Manual Approval)
+    TestComplete --> StagingGate{Staging Approval Gate<br/>Manual Review}
+    StagingGate --> |Approved| StagingDeploy[🎭 Staging Deployment<br/>11 Steps<br/>📄 Click Here to See Details]
+    StagingGate --> |Rejected| RejectStaging[❌ Reject Staging]
+    StagingDeploy --> StagingEnv[Staging Environment]
+    StagingEnv --> StagingComplete[✅ Staging Complete]
+    
+    %% Production Environment (Manual Approval)
+    StagingComplete --> ProdGate{Production Approval Gate<br/>Manual Review + Pre-Deploy Checks}
+    ProdGate --> |Approved| ProdDeploy[🚀 Production Deployment<br/>11 Steps<br/>📄 Click Here to See Details]
+    ProdGate --> |Rejected| RejectProd[❌ Reject Production]
+    ProdDeploy --> ProdEnv[Production Environment]
+    ProdEnv --> ProdComplete[✅ Production Complete]
+    
+    %% Final Steps
+    ProdComplete --> NotifyStakeholders[📧 Notify Stakeholders]
+    DevComplete --> NotifyStakeholders
+    TestComplete --> NotifyStakeholders
+    StagingComplete --> NotifyStakeholders
+    
+    %% Styling - Blue/Purple/Teal/Orange palette (colorblind-friendly, no red/green)
+    classDef processBox fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    classDef approvalBox fill:#fff8e1,stroke:#f57c00,stroke-width:2px,color:#000
+    classDef environmentBox fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    classDef errorBox fill:#fff3e0,stroke:#ff8f00,stroke-width:2px,color:#000
+    classDef successBox fill:#e0f7fa,stroke:#00838f,stroke-width:3px,color:#000
+    classDef noteBox fill:#f5f5f5,stroke:#757575,stroke-width:1px,color:#000
+    
+    class Dev,Owner,Repo,AutoRepo,ReusableWF processBox
+    class PreCheck,BuildCheck,DeployCheck,PRApproval,StagingGate,ProdGate approvalBox
+    class DevEnv,TestEnv,StagingEnv,ProdEnv environmentBox
+    class RejectPR,RejectStaging,RejectProd errorBox
+    class DevComplete,TestComplete,StagingComplete,ProdComplete,NotifyStakeholders successBox
+    class BuildComp,DeployComp,BuildProcess,DevDeploy,TestDeploy,StagingDeploy,ProdDeploy processBox
+    class ArtifactNote noteBox
+    
+    %% Clickable Links
+    click BuildProcess "https://github.com/ava-client-ussouth-scg-argon/argon-automation/blob/main/docs/mermaid/build-process-flowchart.mmd" "View detailed build sequence diagram"
+    click DevDeploy "https://github.com/ava-client-ussouth-scg-argon/argon-automation/blob/main/docs/mermaid/deployment-process-flowchart.mmd" "View detailed deployment sequence diagram"
+    click TestDeploy "https://github.com/ava-client-ussouth-scg-argon/argon-automation/blob/main/docs/mermaid/deployment-process-flowchart.mmd" "View detailed deployment sequence diagram"
+    click StagingDeploy "https://github.com/ava-client-ussouth-scg-argon/argon-automation/blob/main/docs/mermaid/deployment-process-flowchart.mmd" "View detailed deployment sequence diagram"
+    click ProdDeploy "https://github.com/ava-client-ussouth-scg-argon/argon-automation/blob/main/docs/mermaid/deployment-process-flowchart.mmd" "View detailed deployment sequence diagram"

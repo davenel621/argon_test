@@ -1,0 +1,50 @@
+name: 'Setup SSH'
+description: 'A composite action for setting up an SSH connection between runner and target'
+
+inputs:
+  privateKey:
+    description: 'SSH private key for deployment'
+    required: true
+  targetUsername:
+    description: 'Target server username for SSH connection'
+    required: true
+  targetIp:
+    description: 'Target server IP address for SSH connection'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup SSH Key
+      shell: bash
+      env:
+        PRIVATE_KEY: ${{ inputs.privateKey }}
+      run: |
+        echo "🔄 Setting up SSH Key"
+        
+        # Create .ssh directory if it doesn't exist
+        sshDir="$HOME/.ssh"
+        if [ ! -d "$sshDir" ]; then
+            mkdir -p "$sshDir"
+        fi
+        
+        # Write the private key to a .pem file
+        privateKeyPath="$HOME/.ssh/private_key.pem"
+        echo "$PRIVATE_KEY" > "$privateKeyPath"
+        
+        # Set proper permissions on the private key file
+        chmod 600 "$privateKeyPath"
+        
+        echo "✅ SSH Key setup completed - Private key saved to: $privateKeyPath"
+
+    - name: Test SSH Connection to Target
+      shell: bash
+      env:
+        TARGET_USERNAME: ${{ inputs.targetUsername }}
+        TARGET_IP: ${{ inputs.targetIp }}
+      run: |
+        echo "🔄 Testing SSH Connection to Target"
+        
+        privateKeyPath="$HOME/.ssh/private_key.pem"
+        ssh -o StrictHostKeyChecking=no -i "$privateKeyPath" "$TARGET_USERNAME@$TARGET_IP" "echo 'hello world'"
+        echo "✅ SSH Connection test completed"

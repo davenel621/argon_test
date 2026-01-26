@@ -1,0 +1,155 @@
+---
+config:
+  sequence:
+    diagramMarginX: 10
+    diagramMarginY: 10
+    actorMargin: 120
+    width: 500
+    height: 120
+    boxMargin: 20
+    messageMargin: 80
+    noteMargin: 40
+    noteAlign: "left"
+    wrap: true
+    wrapPadding: 20
+    rightAngles: false
+    showSequenceNumbers: false
+    mirrorActors: false
+  themeVariables:
+    noteBkgColor: "#fffbf0"
+    noteTextColor: "#333333"
+    noteBorderColor: "#cccccc"
+    noteTextSize: "14px"
+  svg:
+    useMaxWidth: true
+    padding: 5
+  cssRules: ".note { min-width: 400px !important; }"
+---
+sequenceDiagram
+    participant dev as Developer
+    participant owner as Code Owner
+    participant external_repo as Application Repo<br/>(Ex: Any Application Repo)
+    participant automation_repo as Centralized Automation Repo<br/>(Repo that houses reusable workflows)
+    participant reusable_workflow as Reusable Workflow
+    participant build as Build Composite
+    participant deploy as Deploy Composite
+    participant dev_env as Dev Environment
+    participant test_env as Test Environment
+    participant staging_gate as Staging Approval Gate
+    participant staging_env as Staging Environment
+    participant prod_gate as Prod Approval Gate
+    participant prod_env as Prod Environment
+
+    %% Initial Development Flow
+    dev->>+external_repo: User/Feature branch based off of Main is Published
+    external_repo->>dev: GitHub Advanced Security runs Dependabot, CodeQL, and Secret Scanning
+    dev->>external_repo: Submit Pull Request to merge User/Feature branch into Main
+    external_repo->>owner: Request code review
+
+    Note over external_repo: When a PR is created or updated, a series of<br/>pre-merge checks are executed, including those<br/>that verify Team configurations are correct<br/>and that admin rights have not been tampered with
+
+    %% Pre-Merge Checks
+    external_repo->>external_repo: Run Pre-Merge Checks: Branch Naming Rules,<br/>Environment Protection Rules, Core Branch Protections
+
+    Note over external_repo: Protection rules:<br/>- Required reviewers (Optional, with a designated<br/>  approvers team)<br/>- No bypass allowances<br/>- Administrator bypass disabled<br/>- Workflow failure if tests fail
+
+    %% Workflow Triggering
+    external_repo->>external_repo: Trigger Reusable Workflow via Calling Workflow Template<br/>in Application repository
+
+    Note over external_repo: Workflow uses calling workflow that calls<br/>the reusable workflow housed in a<br/>Centralized Automation Repository
+
+    external_repo->>+automation_repo: Calling Workflow in application repo uses reusable workflow<br/>in Centralized Automation Repository
+
+    Note over external_repo, automation_repo: Within each application repository there will be a calling workflow that<br/>triggers reusable workflow logic from the workflow housed in<br/>the Centralized Automation Repository
+
+    automation_repo->>+reusable_workflow: Execute reusable workflow
+    reusable_workflow->>+build: Execute build composite
+
+    %% Build Process Section
+    rect rgba(9, 30, 51, 1)
+    Note over build: Build Process (15 Steps)
+    build->>build: 1. Install Build Tools
+    build->>build: 2-3. Prepare & Run SCA Scan (∗)
+    build->>build: 4. Generate SBOM (∗)
+    build->>build: 5-6. Publish SCA Results & Enforce Policy (∗)
+    build->>build: 7-8. Prepare & Run SAST Scan (∗)
+    build->>build: 9-11. Generate SARIF, Publish SAST Results & Enforce Policy (∗)
+    Note over build, deploy: Note: Steps denoted with an asterisk (∗)<br/>represent the flow for legacy security applications
+    build->>build: 12. Restore Dependencies
+    build->>build: 13. Build Application
+    build->>build: 14-15. Run Unit Tests & Publish Results
+    build->>build: Post-Build: Validation & Manifest Generation
+    end
+
+    build->>+deploy: Pass build artifacts & security reports
+    build->>-deploy: Deploy: Execute deploy composite
+
+    %% Dev Environment Deployment
+    rect rgba(161, 106, 2, 1)
+    Note over deploy: Dev Environment Deployment
+    deploy->>deploy: 1. Validate Deployment Prerequisites
+    deploy->>deploy: 2. Create Application Backup
+    deploy->>+dev_env: 3. Prepare Deployment Environment
+    deploy->>dev_env: 4. Deploy Application to IIS via SSH
+    deploy->>dev_env: 5. Start Application
+    deploy->>dev_env: 6. Verify Deployment
+    deploy->>dev_env: 7. Run Smoke Tests
+    deploy->>dev_env: 8. Warm up Application
+    deploy->>dev_env: 9. Run Health Checks
+    deploy->>dev_env: 10. Update Deployment Status
+    deploy->>dev_env: 11. Post-Deployment Cleanup
+    dev_env->>-deploy: Dev deployment complete
+    end
+
+    reusable_workflow->>automation_repo: Update deployment status & generate summary
+    automation_repo->>-external_repo: Return workflow results
+
+    Note over external_repo: Note: Notification of deployment completion<br/>can be sent to any designated stakeholders<br/>via email or other communication tools
+
+    external_repo->>dev: Notify completion status
+    owner->>external_repo: Review and approve pull request
+    external_repo->>-external_repo: User/Feature Branch is merged into Main
+
+    %% Test Environment Deployment
+    rect rgba(95, 2, 33, 1)
+    Note over deploy: Test Environment Deployment
+    deploy->>+test_env: Deploy to Test automatically
+    deploy->>test_env: Execute deployment process
+    test_env->>-deploy: Test deployment complete
+    end
+
+    %% Staging Environment Deployment
+    rect rgba(5, 84, 104, 1)
+    Note over deploy: Staging Environment Deployment
+    deploy->>+staging_gate: Request approval for Staging
+    deploy->>deploy: Validate Application APART ID
+    deploy->>deploy: Validate Target IPs
+    staging_gate->>staging_gate: Wait for manual approval<br/>(Environment protection rules enforced)
+
+    Note over staging_gate, staging_env: A designated approvers team for Staging reviews<br/>and approves the deployment
+
+    staging_gate->>+staging_env: Deploy to Staging (after approval)
+    deploy->>staging_env: Execute deployment process
+    staging_env->>-deploy: Staging deployment complete
+    staging_gate->>-staging_gate: Approval completed
+    end
+
+    %% Production Deployment
+    rect rgba(46, 2, 63, 1)
+    Note over deploy: Production Deployment
+    deploy->>+prod_gate: Request approval for Production
+    deploy->>deploy: Validate Application APART ID
+    deploy->>deploy: Validate Target IPs
+    prod_gate->>prod_gate: Wait for manual approval<br/>(Environment protection rules enforced)
+
+    Note over prod_gate, prod_env: A designated approvers team for Production reviews<br/>and approves the deployment
+
+    prod_gate->>prod_gate: Run Pre-Deploy Checks: Branch Naming Rules,<br/>Environment Protection Rules, Core Branch Protections
+    prod_gate->>+prod_env: Deploy to Production (after approval)
+    deploy->>prod_env: Execute deployment process
+    prod_env->>-deploy: Production deployment complete
+    prod_gate->>-prod_gate: Approval completed
+    end
+
+    deactivate deploy
+    deactivate reusable_workflow

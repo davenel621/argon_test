@@ -1,0 +1,27 @@
+name: Run NPM/Node Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - 'users/**'
+  workflow_dispatch:
+    inputs:
+      build-message:
+        description: 'NPM-Node Project is building'
+        required: false
+        type: string
+        default: 'Build Action One'
+      deploy-message:
+        description: 'NPM-Node Project is deploying'
+        required: false
+        type: string
+        default: 'Deployment Action One'
+
+jobs:        
+  run-pipeline:
+    uses: ./.github/workflows/rw-npm-node-build-and-deploy.yaml
+    with:
+      build-message: ${{ inputs.build-message }}
+      deploy-message: ${{ inputs.deploy-message }}
+    secrets: inherit
