@@ -1,0 +1,49 @@
+
+name: Verify Fortify Results Age
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  # Add your deployment triggers here, e.g.:
+  # push:
+  #   branches:
+  #     - main
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  verify-fortify-age:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find latest Fortify results file
+        id: find_fortify
+        run: |
+          # Set the path and pattern for your Fortify results file
+          $fortifyPath = "./fortify-results/"
+          $pattern = "*.fpr"  # Change to your actual file extension if needed
+          $file = Get-ChildItem -Path $fortifyPath -Filter $pattern | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $file) {
+            Write-Error "No Fortify results file found in $fortifyPath."
+            exit 1
+          }
+          echo "fortify_file=$($file.FullName)" >> $env:GITHUB_OUTPUT
+          echo "fortify_date=$($file.LastWriteTime)" >> $env:GITHUB_OUTPUT
+
+      - name: Check Fortify results file age
+        run: |
+          $fortifyDate = (Get-Date '${{ steps.find_fortify.outputs.fortify_date }}')
+          $now = Get-Date
+          $daysOld = ($now - $fortifyDate).Days
+          Write-Host "Fortify results file is $daysOld days old."
+          if ($daysOld -gt 30) {
+            Write-Error "Fortify results are older than 30 days. Deployment blocked."
+            exit 1
+          }
+          Write-Host "Fortify results are valid due to being 30 days old or less."

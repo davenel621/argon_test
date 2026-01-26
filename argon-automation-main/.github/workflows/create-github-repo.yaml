@@ -1,0 +1,79 @@
+name: Create GitHub Repository
+
+permissions:
+  contents: read
+
+on: 
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: 'Name of the new repository to be created'
+        required: true
+      teamSlug:
+        description: 'Name of the GitHub team that will have access to the repository'
+        default: 'argon'
+        required: true
+      orgName:
+        description: 'Name of the organization where the repository will be created'
+        default: 'ava-client-ussouth-scg-argon'
+        required: true
+      templateRepo:
+        description: 'The template repository to use for creating the new repository'
+        default: 'argon-template'
+        required: true
+      description:
+        description: 'Description of the new repository'
+        required: true
+      sourceRepoUrl:
+        description: 'Source repository URL to migrate code from (optional)'
+        required: false
+      sourceToken:
+        description: 'Token for accessing the source repository (required if sourceRepoUrl is provided)'
+        required: false
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  create-github-repository:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    - name: Generate GitHub Repository Configuration App token
+      id: generate-token
+      uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2
+      with:
+        app_id: ${{ secrets.ARGON_REPOCONFIGAPP_ID }}
+        private_key: ${{ secrets.ARGON_REPOCONFIGAPP_PRIVATE_KEY }}
+
+    - name: Create New GitHub Repository From Template
+      id: create-repo
+      run: >
+        $output = pwsh -File utilities/powershell-scripts/git/create-github-repository.ps1
+        -GitHubToken "${{ steps.generate-token.outputs.token }}"
+        -OrgName "${{ inputs.orgName }}"
+        -TemplateRepo "${{ inputs.templateRepo }}"
+        -RepoName "${{ inputs.repoName }}"
+        -TeamSlug "${{ inputs.teamSlug }}"
+        -Description "${{ inputs.description }}";
+        $repoUrl = ($output -split "`n")[-1];
+        echo "repository-url=$repoUrl" >> $env:GITHUB_OUTPUT
+
+    - name: Migrate Code
+      if: ${{ inputs.sourceRepoUrl }}
+      run: >
+        pwsh -File utilities/powershell-scripts/git/migrate-git-repository.ps1
+        -SourceRepoUrl "${{ inputs.sourceRepoUrl }}"
+        -SourceToken "${{ inputs.sourceToken || steps.generate-token.outputs.token }}"
+        -DestinationRepoUrl "${{ steps.create-repo.outputs.repository-url }}"
+        -DestinationToken "${{ steps.generate-token.outputs.token }}"
+
+    - name: Configure Repository
+      run: >
+        pwsh -File utilities/powershell-scripts/git/set-github-repository.ps1
+        -GitHubToken "${{ steps.generate-token.outputs.token }}"
+        -RepoOwner "${{ inputs.orgName }}"
+        -RepoName "${{ inputs.repoName }}"
+        -OrgName "${{ inputs.orgName }}"

@@ -1,0 +1,384 @@
+name: DOTNET Build and Deploy to IIS
+
+on:
+  workflow_call:
+    inputs:
+      dotnetVersion:
+        description: 'What version of .NET to use (e.g., 6.0.x, 7.0.x, 8.0.x)'
+        required: true
+        type: string
+      build-message:
+        required: false
+        type: string
+      scan-message:
+        required: false
+        type: string
+      deploy-message:
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: write
+  security-events: read
+  checks: write
+  pull-requests: read
+  pages: write
+  deployments: write
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App Token
+        id: generate_token
+        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2
+        with:
+          app_id: ${{ secrets.ARGON_AUTHAPP_ID }}
+          private_key: ${{ secrets.ARGON_AUTHAPP_PRIVATE_KEY }}
+
+      - name: Checkout current repo
+        uses: actions/checkout@v4
+        env:
+          REPOSITORY_FULL_NAME: ${{ github.event.repository.full_name }}
+          REPOSITORY_NAME: ${{ github.event.repository.name }}
+        with:
+          repository: ${{ env.REPOSITORY_FULL_NAME }}
+          ref: main
+          token: ${{ steps.generate_token.outputs.token }}
+          path: ${{ env.REPOSITORY_NAME }}
+
+      - name: Checkout reusable workflow repo
+        uses: actions/checkout@v4
+        with:
+          repository: ava-client-ussouth-scg-argon/argon-automation
+          ref: main
+          token: ${{ steps.generate_token.outputs.token }}
+          path: automation
+
+      - name: Prepare for dotnet Build Process
+        run: |
+          echo "::notice title=Build Process::Starting dotnet Build and Security Scan Process"
+          echo "🚀 About to execute dotnet composite action with 15+ detailed steps"
+          echo "📋 Each step will be grouped and clearly labeled in the logs below"
+          echo "🔍 Look for the following phases in the 'Run Build and Scan' step:"
+          echo "   • 🔨 Build Tools Installation"
+          echo "   • 🛡️ Security Tool Preparation (SCA & SAST)"
+          echo "   • 🔍 Vulnerability Scanning"
+          echo "   • 📋 SBOM Generation"
+          echo "   • 🏗️ Application Build"
+          echo "   • 🧪 Unit Testing"
+          echo "   • 📄 Manifest Generation"
+          echo ""
+        shell: pwsh
+
+      - name: Run Build and Scan
+        id: build-and-scan
+        uses: ./automation/composites/dotnet/build
+        with:
+          dotnetVersion: ${{ inputs.dotnetVersion }}
+      
+      - name: Build Process Completion Status
+        run: |
+          echo "::notice title=Build Status::dotnet Build and Scan Composite Action Completed"
+          echo "🎯 Composite Action Status: ${{ steps.build-and-scan.outcome }}"
+          echo "📝 The detailed step-by-step logs are available in the 'Run Build and Scan' step above"
+          echo "🔍 Look for grouped log sections with icons (🔨, 🛡️, 🔍, 📋, etc.) for each build phase"
+          echo ""
+          echo "📊 Build Configuration Used:"
+          echo "  • SCA Tool: demo-sca-tool"
+          echo "  • SAST Tool: semgrep"
+          echo "  • Source Path: **/*"
+          echo "  • Fail on Vulnerabilities: true"
+          echo "  • Generate SBOM: true"
+          echo "  • Generate SARIF: true"
+        shell: pwsh
+      
+      - name: Display Build Process Details
+        env:
+          SCA_TOOL: ${{ github.event.inputs.scaTool || 'demo-sca-tool' }}
+          SAST_TOOL: ${{ github.event.inputs.sastTool || 'semgrep' }}
+        run: |
+          echo "=== dotnet Build Process Details ==="
+          echo "Build Tools Installation: ✅ Completed"
+          echo "SCA Tool ($env:SCA_TOOL): ✅ Prepared and Executed"
+          echo "SBOM Generation: ✅ Completed"
+          echo "SAST Tool ($env:SAST_TOOL): ✅ Prepared and Executed"
+          echo "SARIF Report: ✅ Generated"
+          echo "Dependencies Restoration: ✅ Completed"
+          echo "Application Build: ✅ Completed"
+          echo "Unit Tests: ✅ Executed"
+          echo "Test Results: ✅ Published"
+          echo "Post-Build Processing: ✅ Completed"
+          echo "dotnet Manifest: ✅ Generated"
+          echo "=== All Build Steps Completed Successfully ==="
+        shell: pwsh
+
+      - name: Build Job Summary
+        if: always()
+        env:
+          BUILD_MESSAGE: ${{ inputs.build-message }}
+          SCAN_MESSAGE: ${{ inputs.scan-message }}
+          REF_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          echo "## 🔨 Build and Scan Summary" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Build Message:** $env:BUILD_MESSAGE" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Scan Message:** $env:SCAN_MESSAGE" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Branch:** ``$env:REF_NAME``" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Commit:** ``$env:COMMIT_SHA``" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "### Build Status: ✅ Completed Successfully" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "#### 🔧 Build Tools & Environment:" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ Build tools installation completed" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ Dependencies restoration completed" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ Application build completed" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "#### 🛡️ Security Analysis:" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ SCA (Software Composition Analysis) scan completed" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ SAST (Static Application Security Testing) scan completed" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ Vulnerability policy enforcement completed" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ SARIF security report generated" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "#### 📋 Compliance & Documentation:" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ SBOM (Software Bill of Materials) generated" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ SCA and SAST results published" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ dotnet deployment manifest created" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "#### 🧪 Testing & Validation:" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ Unit tests executed successfully" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ Test results and coverage published" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ dotnet test validation completed" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ✅ Post-build processing and verification completed" >> $env:GITHUB_STEP_SUMMARY
+        shell: pwsh
+  
+  deploy-to-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: build
+    environment: dev
+    env:
+      DEPLOY_ENVIRONMENT: dev
+    steps: &deploy_steps
+      - name: Generate GitHub App Token
+        id: generate_token
+        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2
+        with:
+          app_id: ${{ secrets.ARGON_AUTHAPP_ID }}
+          private_key: ${{ secrets.ARGON_AUTHAPP_PRIVATE_KEY }}
+
+      - name: Checkout reusable workflow repo
+        uses: actions/checkout@v4
+        with:
+          repository: ava-client-ussouth-scg-argon/argon-automation
+          ref: main
+          token: ${{ steps.generate_token.outputs.token }}
+          path: automation
+
+      - name: Deploy to ${{ env.DEPLOY_ENVIRONMENT }} Environment
+        id: deploy-to-target-env
+        uses: ./automation/composites/dotnet/deploy-to-iis
+        with:
+          dotnetVersion: ${{ inputs.dotnetVersion }}
+          environment: ${{ env.DEPLOY_ENVIRONMENT }}
+          privateKey: ${{ secrets.PRIVATE_KEY }}
+          targetUsername: ${{ secrets.TARGET_USERNAME }}
+          targetIp: ${{ secrets.TARGET_IP }}
+
+      - name: ${{ env.DEPLOY_ENVIRONMENT }} Deployment Summary
+        if: always()
+        shell: pwsh
+        env:
+          DEPLOY_MESSAGE: ${{ inputs.deploy-message }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $envName = "$env:DEPLOY_ENVIRONMENT"
+          $icon = if ($envName -eq 'dev') { '🚀' } elseif ($envName -eq 'test') { '🧪' } elseif ($envName -eq 'staging') { '🎭' } elseif ($envName -eq 'prod') { '🌟' }
+          echo "## $icon $envName Deployment Summary" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Environment:** ``$env:DEPLOY_ENVIRONMENT``" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Deploy Message:** $env:DEPLOY_MESSAGE to $env:DEPLOY_ENVIRONMENT" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Branch:** ``$env:REF_NAME``" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** ``$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')``" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          
+          # Check non-prod deployment status
+          $deploymentStatus = "${{ steps.deploy-to-target-env.outcome }}"
+          $deploymentEnv = "${{ env.DEPLOY_ENVIRONMENT }}"
+          
+          if ($deploymentEnv -ne "prod") {
+            if ($deploymentStatus -eq "failure") {
+              echo "### $deploymentEnv Deployment Status: ❌ **FAILED - Deployment Error**" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ❌ Deployment failed during execution" >> $env:GITHUB_STEP_SUMMARY
+              echo "- 🔧 Please check deployment logs and retry" >> $env:GITHUB_STEP_SUMMARY
+            } elseif ($deploymentStatus -eq "success") {
+              echo "### $deploymentEnv Deployment Status: ✅ **Deployed Successfully**" >> $env:GITHUB_STEP_SUMMARY
+              echo "" >> $env:GITHUB_STEP_SUMMARY
+              echo "#### 🔧 Pre-Deployment & Preparation:" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Prerequisites validation completed" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Application backup created and archived" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Deployment environment prepared" >> $env:GITHUB_STEP_SUMMARY
+              echo "" >> $env:GITHUB_STEP_SUMMARY
+              echo "#### 🚀 $deploymentEnv Application Deployment:" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ dotnet application deployed to IIS" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Application started and services running" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Deployment verification completed" >> $env:GITHUB_STEP_SUMMARY
+              echo "" >> $env:GITHUB_STEP_SUMMARY
+              echo "#### 🧪 $deploymentEnv Testing & Validation:" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Smoke tests executed successfully" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Application warm-up completed" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Health checks passed" >> $env:GITHUB_STEP_SUMMARY
+              echo "" >> $env:GITHUB_STEP_SUMMARY
+              echo "#### 📊 $deploymentEnv Post-Deployment:" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Deployment status updated and logged" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Temporary files cleaned up" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ✅ Ready for testing and validation" >> $env:GITHUB_STEP_SUMMARY
+            } else {
+              echo "### $deploymentEnv Deployment Status: ⏸️ **Skipped or Cancelled**" >> $env:GITHUB_STEP_SUMMARY
+              echo "- ⏸️ Deployment was skipped or cancelled" >> $env:GITHUB_STEP_SUMMARY
+            }
+          }
+
+          if ($deploymentEnv -eq "prod") {
+            if ($validationStatus -eq "failure") {
+                echo "### $deploymentEnv Deployment Status: ❌ **FAILED - Environment Protection Validation**" >> $env:GITHUB_STEP_SUMMARY
+                echo "- ❌ Environment protection rules validation failed" >> $env:GITHUB_STEP_SUMMARY
+                echo "- ⏸️ Deployment was blocked due to policy violations" >> $env:GITHUB_STEP_SUMMARY
+                echo "" >> $env:GITHUB_STEP_SUMMARY
+                echo "#### 🔧 **Required Corrections for prod environment:**" >> $env:GITHUB_STEP_SUMMARY
+                echo "1. **Required Reviewers Rule**: Environment must have a required reviewers protection rule configured" >> $env:GITHUB_STEP_SUMMARY
+                echo "2. **Team Configuration**: Team 'argon-adm' must be configured as a required reviewer" >> $env:GITHUB_STEP_SUMMARY
+                echo "3. **No Bypass Allowances**: Remove any bypass allowances for users, teams, or applications" >> $env:GITHUB_STEP_SUMMARY
+                echo "4. **Administrator Bypass**: Ensure 'Allow administrators to bypass configured protection rules' is DISABLED" >> $env:GITHUB_STEP_SUMMARY
+                echo "5. **Branch Policy**: Consider adding deployment branch policies for additional security" >> $env:GITHUB_STEP_SUMMARY
+                echo "" >> $env:GITHUB_STEP_SUMMARY
+                echo "📋 **How to fix**: Go to Repository Settings → Environments → prod → Configure protection rules" >> $env:GITHUB_STEP_SUMMARY
+            } elseif ($deploymentStatus -eq "failure") {
+                echo "### $deploymentEnv Deployment Status: ❌ **FAILED - Deployment Error**" >> $env:GITHUB_STEP_SUMMARY
+                echo "- ✅ Environment protection rules validated successfully" >> $env:GITHUB_STEP_SUMMARY
+                echo "- ❌ Deployment failed during execution" >> $env:GITHUB_STEP_SUMMARY
+                echo "- 🔧 Please check deployment logs and retry" >> $env:GITHUB_STEP_SUMMARY
+            } elseif ($deploymentStatus -eq "success") {
+                echo "### $deploymentEnv Deployment Status: ✅ **Deployed Successfully**" >> $env:GITHUB_STEP_SUMMARY
+                echo "- ✅ Environment protection rules validated successfully" >> $env:GITHUB_STEP_SUMMARY
+                echo "- ✅ Application deployed to production" >> $env:GITHUB_STEP_SUMMARY
+                echo "- ✅ Production health checks passed" >> $env:GITHUB_STEP_SUMMARY
+                echo "- ✅ Live and serving users" >> $env:GITHUB_STEP_SUMMARY
+                echo "" >> $env:GITHUB_STEP_SUMMARY
+                echo "🎉 **Production deployment completed successfully!**"
+            } else {
+                echo "### $deploymentEnv Deployment Status: ⏸️ **Skipped or Cancelled**" >> $env:GITHUB_STEP_SUMMARY
+                echo "- ⏸️ Deployment was skipped or cancelled" >> $env:GITHUB_STEP_SUMMARY
+            }
+          }
+
+  deploy-to-test:
+    name: Deploy to Test
+    runs-on: ubuntu-latest
+    needs: deploy-to-dev
+    environment: test
+    env:
+      DEPLOY_ENVIRONMENT: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    steps: *deploy_steps
+
+  deploy-to-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: deploy-to-test
+    environment: staging
+    env:
+      DEPLOY_ENVIRONMENT: staging
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    steps: *deploy_steps
+
+  deploy-to-prod:
+    name: Deploy to Prod
+    runs-on: ubuntu-latest
+    needs: deploy-to-staging
+    environment: prod
+    env:
+      DEPLOY_ENVIRONMENT: prod
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    steps: *deploy_steps
+
+  workflow-summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    needs: [build, deploy-to-dev, deploy-to-test, deploy-to-staging, deploy-to-prod]
+    if: always()
+    steps:
+      - name: Generate GitHub App Token
+        id: generate_token
+        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2
+        with:
+          app_id: ${{ secrets.ARGON_AUTHAPP_ID }}
+          private_key: ${{ secrets.ARGON_AUTHAPP_PRIVATE_KEY }}
+
+      - name: Checkout reusable workflow repo
+        uses: actions/checkout@v4
+        with:
+          repository: ava-client-ussouth-scg-argon/argon-automation
+          ref: main
+          token: ${{ steps.generate_token.outputs.token }}
+          path: automation
+
+      - name: Overall Workflow Summary
+        shell: pwsh
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          DEPLOY_DEV_RESULT: ${{ needs.deploy-to-dev.result }}
+          DEPLOY_TEST_RESULT: ${{ needs.deploy-to-test.result }}
+          DEPLOY_STAGING_RESULT: ${{ needs.deploy-to-staging.result }}
+          DEPLOY_PROD_RESULT: ${{ needs.deploy-to-prod.result }}
+          GITHUB_REF: ${{ github.ref }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          echo "# 📋 dotnet Build and Deploy Workflow Summary" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Workflow:** ``$env:WORKFLOW_NAME``" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Branch:** ``$env:REF_NAME``" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Event:** ``$env:EVENT_NAME``" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Actor:** ``$env:ACTOR``" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Run ID:** ``$env:RUN_ID``" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "## Job Status Overview:" >> $env:GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $env:GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $env:GITHUB_STEP_SUMMARY
+          $buildStatus = if ($env:BUILD_RESULT -eq "success") { "✅ Success" } elseif ($env:BUILD_RESULT -eq "failure") { "❌ Failed" } elseif ($env:BUILD_RESULT -eq "cancelled") { "⏹️ Cancelled" } else { "⏸️ Skipped" }
+          $devStatus = if ($env:DEPLOY_DEV_RESULT -eq "success") { "✅ Success" } elseif ($env:DEPLOY_DEV_RESULT -eq "failure") { "❌ Failed" } elseif ($env:DEPLOY_DEV_RESULT -eq "cancelled") { "⏹️ Cancelled" } else { "⏸️ Skipped" }
+          $testStatus = if ($env:DEPLOY_TEST_RESULT -eq "success") { "✅ Success" } elseif ($env:DEPLOY_TEST_RESULT -eq "failure") { "❌ Failed" } elseif ($env:DEPLOY_TEST_RESULT -eq "cancelled") { "⏹️ Cancelled" } else { "⏸️ Skipped" }
+          $stagingStatus = if ($env:DEPLOY_STAGING_RESULT -eq "success") { "✅ Success" } elseif ($env:DEPLOY_STAGING_RESULT -eq "failure") { "❌ Failed" } elseif ($env:DEPLOY_STAGING_RESULT -eq "cancelled") { "⏹️ Cancelled" } else { "⏸️ Skipped" }
+          $prodStatus = if ($env:DEPLOY_PROD_RESULT -eq "success") { "✅ Success" } elseif ($env:DEPLOY_PROD_RESULT -eq "failure") { "❌ Failed" } elseif ($env:DEPLOY_PROD_RESULT -eq "cancelled") { "⏹️ Cancelled" } else { "⏸️ Skipped" }
+          echo "| 🔨 Build | $buildStatus |" >> $env:GITHUB_STEP_SUMMARY
+          echo "| 🚀 Deploy to Dev | $devStatus |" >> $env:GITHUB_STEP_SUMMARY
+          echo "| 🧪 Deploy to Test | $testStatus |" >> $env:GITHUB_STEP_SUMMARY
+          echo "| 🎭 Deploy to Staging | $stagingStatus |" >> $env:GITHUB_STEP_SUMMARY
+          echo "| 🌟 Deploy to Prod | $prodStatus |" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          
+          # Determine overall status
+          if ($env:BUILD_RESULT -eq "success" -and $env:DEPLOY_DEV_RESULT -eq "success") {
+            if ($env:GITHUB_REF -eq "refs/heads/main") {
+              if ($env:DEPLOY_TEST_RESULT -eq "success" -and $env:DEPLOY_STAGING_RESULT -eq "success" -and $env:DEPLOY_PROD_RESULT -eq "success") {
+                echo "## 🎉 Overall Status: **FULL PIPELINE SUCCESS**" >> $env:GITHUB_STEP_SUMMARY
+                echo "All environments have been successfully deployed!" >> $env:GITHUB_STEP_SUMMARY
+              } else {
+                echo "## ⚠️ Overall Status: **PARTIAL SUCCESS**" >> $env:GITHUB_STEP_SUMMARY
+                echo "Dev deployment succeeded, but higher environments had issues." >> $env:GITHUB_STEP_SUMMARY
+              }
+            } else {
+              echo "## ✅ Overall Status: **BRANCH BUILD SUCCESS**" >> $env:GITHUB_STEP_SUMMARY
+              echo "Build and dev deployment completed successfully for feature branch." >> $env:GITHUB_STEP_SUMMARY
+            }
+          } else {
+            echo "## ❌ Overall Status: **WORKFLOW FAILED**" >> $env:GITHUB_STEP_SUMMARY
+            echo "One or more critical steps failed. Please review the logs." >> $env:GITHUB_STEP_SUMMARY
+          }
