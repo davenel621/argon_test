@@ -1,0 +1,104 @@
+name: Build and Deploy SQL Application
+
+permissions:
+  contents: read
+  actions: read
+
+on:
+  workflow_call:
+    inputs:
+      sqlVersion:
+        description: 'SQL version to use'
+        required: false
+        type: string
+        default: '2019'
+      remoteUser:
+        description: 'SSH username for the remote server'
+        required: true
+        type: string
+      remotePath:
+        description: 'Path on the remote server to deploy artifacts'
+        required: true
+        type: string
+      webAppDirectory:
+        description: 'Target directory on the remote server for the web app'
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build SQL Application
+        uses: ./composites/sql/build
+        with:
+          sqlVersion: ${{ inputs.sqlVersion }}
+          SSC_URL: ${{ secrets.SSC_URL }}
+          SSC_TOKEN: ${{ secrets.SSC_TOKEN }}
+          SC_SAST_CLIENT_AUTH_TOKEN: ${{ secrets.SC_SAST_CLIENT_AUTH_TOKEN }}
+          DEBRICKED_TOKEN: ${{ secrets.DEBRICKED_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+  deploy-to-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: build
+    environment: dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Deploy to Dev
+        uses: ./composites/sql/deploy
+        with:
+          sshPrivateKey: ${{ secrets.SSH_PRIVATE_KEY }}
+          remoteUser: ${{ inputs.remoteUser }}
+          remoteHost: ${{ secrets.REMOTE_HOST }}
+          remotePath: ${{ inputs.remotePath }}
+          webAppDirectory: ${{ inputs.webAppDirectory }}
+          sqlVersion: ${{ inputs.sqlVersion }}
+
+  deploy-to-test:
+    name: Deploy to Test
+    runs-on: ubuntu-latest
+    needs: deploy-to-dev
+    environment: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Deploy to Test
+        uses: ./composites/sql/deploy
+        with:
+          sshPrivateKey: ${{ secrets.SSH_PRIVATE_KEY }}
+          remoteUser: ${{ inputs.remoteUser }}
+          remoteHost: ${{ secrets.REMOTE_HOST }}
+          remotePath: ${{ inputs.remotePath }}
+          webAppDirectory: ${{ inputs.webAppDirectory }}
+          sqlVersion: ${{ inputs.sqlVersion }}
+
+      - name: Run Integration Tests
+        uses: ./composites/sql/integration-test
+        with:
+          webAppDirectory: ${{ inputs.webAppDirectory }}
+
+  deploy-to-prod:
+    name: Deploy to Prod
+    runs-on: ubuntu-latest
+    needs: deploy-to-test
+    environment: prod
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Deploy to Prod
+        uses: ./composites/sql/deploy
+        with:
+          sshPrivateKey: ${{ secrets.SSH_PRIVATE_KEY }}
+          remoteUser: ${{ inputs.remoteUser }}
+          remoteHost: ${{ secrets.REMOTE_HOST }}
+          remotePath: ${{ inputs.remotePath }}
+          webAppDirectory: ${{ inputs.webAppDirectory }}
+          sqlVersion: ${{ inputs.sqlVersion }}
+

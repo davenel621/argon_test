@@ -1,0 +1,293 @@
+name: 'Required Workflow: Check Branch Ruleset Protection'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+  push:
+    branches: [main]
+  merge_group:
+
+jobs:
+  check-branch-ruleset:
+    name: 'Validate Repository Branch Ruleset Protection'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Repository Branch Ruleset Protection
+        id: check-rules
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          ORGANIZATION: ${{ github.repository_owner }}
+        run: |
+          Write-Host "🔍 Checking branch ruleset protection for repository '$env:REPOSITORY'"
+          Write-Host ""
+          
+          $headers = @{
+              'Authorization' = "Bearer $env:GITHUB_TOKEN"
+              'Accept' = 'application/vnd.github+json'
+              'X-GitHub-Api-Version' = '2022-11-28'
+              'User-Agent' = 'GitHub-Actions-Ruleset-Protection-Check'
+          }
+          
+          $validationResults = @()
+          $isValid = $true
+          
+          try {
+              # Check repository rulesets
+              $rulesetsUri = "https://api.github.com/repos/$env:REPOSITORY/rulesets"
+              Write-Host "🌐 Fetching repository rulesets..."
+              try {
+                  $rulesetsResponse = Invoke-RestMethod -Uri $rulesetsUri -Headers $headers
+              } catch {
+                  Write-Host "❌ Failed to fetch rulesets from GitHub API."
+                  if ($_.Exception.Response -ne $null) {
+                      $statusCode = $_.Exception.Response.StatusCode.value__
+                      $stream = $_.Exception.Response.GetResponseStream()
+                      $reader = New-Object System.IO.StreamReader($stream)
+                      $responseBody = $reader.ReadToEnd()
+                      Write-Host "Status Code: $statusCode"
+                      Write-Host "Response Body: $responseBody"
+                  } else {
+                      Write-Host "Error: $($_.Exception.Message)"
+                  }
+                  exit 1
+              }
+              
+              Write-Host "✅ Found $($rulesetsResponse.Count) ruleset(s) for repository"
+              
+              # Check if any rulesets are configured
+              if (-not $rulesetsResponse -or $rulesetsResponse.Count -eq 0) {
+                  $validationResults += "❌ No rulesets configured for repository '$env:REPOSITORY'"
+                  $isValid = $false
+              } else {
+                  # Look for rulesets that target the main branch
+                  $mainBranchRulesets = @()
+                  foreach ($ruleset in $rulesetsResponse) {
+                      Write-Host "🔒 Checking ruleset: '$($ruleset.name)' (ID: $($ruleset.id), Source: $($ruleset.source))"
+                      
+                      # Check if this ruleset targets the main branch
+                      $targetsMainBranch = $false
+                      
+                      # Different approaches to check if ruleset targets main branch
+                      if ($ruleset.conditions) {
+                          # Check for ref_name conditions
+                          if ($ruleset.conditions.ref_name) {
+                              if ($ruleset.conditions.ref_name.include) {
+                                  foreach ($refCondition in $ruleset.conditions.ref_name.include) {
+                                      Write-Host "  📋 Found ref condition: $refCondition"
+                                      if ($refCondition -eq "refs/heads/main" -or $refCondition -eq "~DEFAULT_BRANCH" -or $refCondition -eq "main") {
+                                          $targetsMainBranch = $true
+                                          Write-Host "  ✅ This condition targets main branch"
+                                          break
+                                      }
+                                  }
+                              }
+                          }
+                          
+                          # Also check for repository_name conditions (org-level rulesets)
+                          if ($ruleset.conditions.repository_name) {
+                              Write-Host "  📋 Ruleset has repository name conditions (likely organization-level)"
+                          }
+                          
+                          # If no specific ref conditions, check if it's a repository-wide ruleset
+                          if (-not $ruleset.conditions.ref_name -and $ruleset.target -eq "branch") {
+                              Write-Host "  📋 Ruleset targets branches but no specific ref conditions found"
+                              # This might be a catch-all ruleset - let's be more lenient
+                              $targetsMainBranch = $true
+                              Write-Host "  ✅ Assuming this ruleset applies to main branch (no exclusions found)"
+                          }
+                      } else {
+                          Write-Host "  📋 No conditions found - checking target type"
+                          # If no conditions specified, might apply to all branches
+                          if ($ruleset.target -eq "branch") {
+                              $targetsMainBranch = $true
+                              Write-Host "  ✅ Ruleset targets all branches (including main)"
+                          }
+                      }
+                      
+                      if ($targetsMainBranch) {
+                          $mainBranchRulesets += $ruleset
+                          $validationResults += "✅ Ruleset '$($ruleset.name)' targets main branch"
+                          
+                          # Check if ruleset has required rules
+                          if ($ruleset.rules) {
+                              $hasRequiredReviews = $false
+                              $hasRequiredWorkflows = $false
+                              $hasDeleteRestriction = $false
+                              
+                              Write-Host "  📋 Checking $($ruleset.rules.Count) rule(s) in ruleset"
+                              foreach ($rule in $ruleset.rules) {
+                                  Write-Host "    🔍 Rule type: $($rule.type)"
+                                  if ($rule.type -eq "pull_request") {
+                                      $hasRequiredReviews = $true
+                                      $validationResults += "✅ Ruleset '$($ruleset.name)' includes pull request review requirements"
+                                  }
+                                  if ($rule.type -eq "required_workflows") {
+                                      $hasRequiredWorkflows = $true
+                                      $validationResults += "✅ Ruleset '$($ruleset.name)' includes required workflows"
+                                  }
+                                  if ($rule.type -eq "deletion") {
+                                      $hasDeleteRestriction = $true
+                                      $validationResults += "✅ Ruleset '$($ruleset.name)' includes deletion restrictions"
+                                  }
+                              }
+                              
+                              if (-not $hasRequiredReviews) {
+                                  $validationResults += "⚠️  Ruleset '$($ruleset.name)' does not require pull request reviews"
+                              }
+                              if (-not $hasRequiredWorkflows) {
+                                  $validationResults += "ℹ️  Ruleset '$($ruleset.name)' does not include required workflows"
+                              }
+                          } else {
+                              Write-Host "  📋 No rules found in this ruleset"
+                              $validationResults += "⚠️  Ruleset '$($ruleset.name)' has no rules configured"
+                          }
+                      } else {
+                          Write-Host "  ❌ This ruleset does not target the main branch"
+                          $validationResults += "ℹ️  Ruleset '$($ruleset.name)' does not target main branch"
+                      }
+                  }
+                  
+                  if ($mainBranchRulesets.Count -eq 0) {
+                      $validationResults += "❌ No rulesets found that target the main branch"
+                      $isValid = $false
+                  } else {
+                      $validationResults += "✅ Found $($mainBranchRulesets.Count) ruleset(s) protecting the main branch"
+                  }
+              }
+              
+              # Check organization-level rulesets that might apply
+              $orgRulesetsUri = "https://api.github.com/orgs/$env:ORGANIZATION/rulesets"
+              Write-Host "🏢 Checking organization-level rulesets..."
+              try {
+                  $orgRulesetsResponse = Invoke-RestMethod -Uri $orgRulesetsUri -Headers $headers
+                  if ($orgRulesetsResponse -and $orgRulesetsResponse.Count -gt 0) {
+                      Write-Host "✅ Found $($orgRulesetsResponse.Count) organization-level ruleset(s)"
+                      $orgRulesetsApplyingToRepo = 0
+                      foreach ($orgRuleset in $orgRulesetsResponse) {
+                          Write-Host "  🏢 Org ruleset: '$($orgRuleset.name)' (ID: $($orgRuleset.id))"
+                          # Check if this org ruleset applies to this repository
+                          $appliesToRepo = $false
+                          
+                          if ($orgRuleset.target -eq "repository") {
+                              # Repository-level org ruleset - check conditions
+                              if ($orgRuleset.conditions -and $orgRuleset.conditions.repository_name) {
+                                  $repoName = $env:REPOSITORY.Split('/')[-1]
+                                  if ($orgRuleset.conditions.repository_name.include) {
+                                      if ($orgRuleset.conditions.repository_name.include -contains $repoName -or 
+                                          $orgRuleset.conditions.repository_name.include -contains "*") {
+                                          $appliesToRepo = $true
+                                      }
+                                  } else {
+                                      # No specific include conditions means applies to all
+                                      $appliesToRepo = $true
+                                  }
+                                  
+                                  # Check for exclusions
+                                  if ($orgRuleset.conditions.repository_name.exclude -and 
+                                      $orgRuleset.conditions.repository_name.exclude -contains $repoName) {
+                                      $appliesToRepo = $false
+                                  }
+                              } else {
+                                  # No repository conditions means applies to all repos
+                                  $appliesToRepo = $true
+                              }
+                          } elseif ($orgRuleset.target -eq "branch") {
+                              # Branch-level org ruleset - always check if it applies
+                              $appliesToRepo = $true
+                          }
+                          
+                          if ($appliesToRepo) {
+                              $orgRulesetsApplyingToRepo++
+                              $validationResults += "✅ Organization ruleset '$($orgRuleset.name)' applies to this repository"
+                              
+                              # If it's a branch ruleset, check if it targets main
+                              if ($orgRuleset.target -eq "branch") {
+                                  $targetsMainFromOrg = $false
+                                  if ($orgRuleset.conditions -and $orgRuleset.conditions.ref_name) {
+                                      if ($orgRuleset.conditions.ref_name.include) {
+                                          foreach ($refCondition in $orgRuleset.conditions.ref_name.include) {
+                                              if ($refCondition -eq "refs/heads/main" -or $refCondition -eq "~DEFAULT_BRANCH" -or $refCondition -eq "main") {
+                                                  $targetsMainFromOrg = $true
+                                                  break
+                                              }
+                                          }
+                                      }
+                                  } else {
+                                      # No ref conditions means applies to all branches
+                                      $targetsMainFromOrg = $true
+                                  }
+                                  
+                                  if ($targetsMainFromOrg) {
+                                      $validationResults += "✅ Organization ruleset '$($orgRuleset.name)' protects the main branch"
+                                      # Add to our main branch rulesets count
+                                      $mainBranchRulesets += $orgRuleset
+                                  }
+                              }
+                          } else {
+                              Write-Host "    ℹ️  Does not apply to this repository"
+                          }
+                      }
+                      
+                      if ($orgRulesetsApplyingToRepo -gt 0) {
+                          $validationResults += "✅ $orgRulesetsApplyingToRepo organization-level ruleset(s) apply to this repository"
+                      } else {
+                          $validationResults += "ℹ️  No organization-level rulesets apply to this repository"
+                      }
+                  } else {
+                      $validationResults += "ℹ️  No organization-level rulesets found"
+                  }
+              } catch {
+                  # Organization rulesets might not be accessible with repository token
+                  if ($_.Exception.Response -and $_.Exception.Response.StatusCode.value__ -eq 403) {
+                      $validationResults += "ℹ️  Cannot check organization rulesets (insufficient permissions - this is normal for repository tokens)"
+                  } else {
+                      $validationResults += "⚠️  Could not retrieve organization rulesets: $($_.Exception.Message)"
+                  }
+              }
+          }
+          catch {
+              Write-Error "Failed to check branch ruleset protection: $($_.Exception.Message)"
+              $validationResults += "❌ Failed to retrieve ruleset information: $($_.Exception.Message)"
+              $isValid = $false
+          }
+          
+          # Generate summary
+          Write-Host ""
+          Write-Host "📊 Branch Ruleset Protection Validation Summary"
+          Write-Host "==============================================="
+          
+          foreach ($result in $validationResults) {
+              Write-Host $result
+          }
+          
+          Write-Host ""
+          if ($isValid) {
+              Write-Host "🎉 Repository branch ruleset protection is properly configured!" -ForegroundColor Green
+          } else {
+              Write-Host "⚠️  Repository branch ruleset protection validation failed!" -ForegroundColor Red
+              Write-Host "Please ensure the following requirements are met:" -ForegroundColor Yellow
+              Write-Host "  1. Repository has rulesets configured that target the main branch" -ForegroundColor Yellow
+              Write-Host "  2. Rulesets include required pull request review rules" -ForegroundColor Yellow
+              Write-Host "  3. Consider configuring required workflows in rulesets" -ForegroundColor Yellow
+              Write-Host "  4. Organization-level rulesets should be configured for consistent governance" -ForegroundColor Yellow
+          }
+          
+          # Set outputs
+          $validationSummary = $validationResults -join "`n"
+          "branch-rulesets-valid=$($isValid.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "validation-summary<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $validationSummary | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          
+          # Set exit code
+          if (-not $isValid) {
+              Write-Host "::error::Branch ruleset protection validation failed. See summary above for details."
+              exit 1
+          }
