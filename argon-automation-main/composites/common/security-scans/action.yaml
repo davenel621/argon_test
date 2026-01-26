@@ -1,0 +1,60 @@
+name: 'Run Fortify and SonarQube Scans'
+description: 'A composite action for running Fortify and SonarQube scans'
+
+inputs:
+  SSC_URL:
+    description: 'Fortify Software Security Center URL'
+    required: true
+  SSC_TOKEN:
+    description: 'Fortify Software Security Center authentication token'
+    required: true
+  SC_SAST_CLIENT_AUTH_TOKEN:
+    description: 'Fortify ScanCentral SAST client authentication token'
+    required: true
+  DEBRICKED_TOKEN:
+    description: 'Debricked authentication token for dependency scanning'
+    required: true
+  SONAR_TOKEN:
+    description: 'SonarQube authentication token'
+    required: true
+  SONAR_HOST_URL:
+    description: 'SonarQube server URL'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Fortify SCA Scan
+      uses: fortify/github-action/ssc-debricked-scan@v2
+      continue-on-error: false
+      env:
+        SSC_URL: ${{ inputs.SSC_URL }}
+        SSC_TOKEN: ${{ inputs.SSC_TOKEN }}
+        SC_SAST_TOKEN: ${{ inputs.SC_SAST_CLIENT_AUTH_TOKEN }}
+        DEBRICKED_TOKEN: ${{ inputs.DEBRICKED_TOKEN }}
+
+    - name: Fortify SAST Scan
+      uses: fortify/github-action/sc-sast-scan@v2
+      continue-on-error: false
+      env:
+        SSC_URL: ${{ inputs.SSC_URL }}
+        SSC_TOKEN: ${{ inputs.SSC_TOKEN }}
+        SC_SAST_TOKEN: ${{ inputs.SC_SAST_CLIENT_AUTH_TOKEN }}
+        DEBRICKED_TOKEN: ${{ inputs.DEBRICKED_TOKEN }}
+
+    - name: SonarQube Scan
+      uses: sonarsource/sonarqube-scan-action@master
+      continue-on-error: false
+      env:
+        SONAR_TOKEN: ${{ inputs.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ inputs.SONAR_HOST_URL }}
+
+    - name: SonarQube Quality Gate Check
+      id: sonarqube-quality-gate-check
+      uses: sonarsource/sonarqube-quality-gate-action@master
+      continue-on-error: false
+      with:
+        pollingTimeoutSec: 600
+      env:
+        SONAR_TOKEN: ${{ inputs.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ inputs.SONAR_HOST_URL }}

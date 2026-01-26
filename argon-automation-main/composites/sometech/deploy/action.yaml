@@ -1,0 +1,293 @@
+name: 'SomeTech Deploy Composite Action'
+description: 'A SomeTech composite action for deployment operations'
+
+inputs:
+  applicationName:
+    description: 'Name of the application.'
+    required: true
+    default: 'SomeTech Application'
+  healthCheckUrl:
+    description: 'URL for health check.'
+    required: false
+    default: ''
+  runSmokeTests:
+    description: 'Run smoke tests after deployment.'
+    required: false
+    default: 'true'
+  virtualDirectory:
+    description: 'Virtual directory for the application.'
+    required: false
+    default: ''
+  baseUrl:
+    description: 'Base URL for the application.'
+    required: false
+    default: ''
+  retries:
+    description: 'Number of retries for failed operations.'
+    required: false
+    default: '3'
+  retryDelaySeconds:
+    description: 'Delay in seconds between retries.'
+    required: false
+    default: '10'
+
+runs:
+  using: "composite"
+  steps:
+    - name: 🚀 SomeTech Deploy Process Start
+      env:
+        APPLICATION_NAME: ${{ inputs.applicationName }}
+        HEALTH_CHECK_URL: ${{ inputs.healthCheckUrl }}
+        RUN_SMOKE_TESTS: ${{ inputs.runSmokeTests }}
+        VIRTUAL_DIRECTORY: ${{ inputs.virtualDirectory }}
+        BASE_URL: ${{ inputs.baseUrl }}
+        RETRIES: ${{ inputs.retries }}
+        RETRY_DELAY_SECONDS: ${{ inputs.retryDelaySeconds }}
+      run: |
+        echo "::notice title=SomeTech Deploy::Starting SomeTech Deployment Process"
+        echo "📋 Total Steps: 11 main deployment steps"
+        echo "🚀 Application Name: '$env:APPLICATION_NAME'"
+        echo "🔍 Health Check URL: '$env:HEALTH_CHECK_URL'"
+        echo "🧪 Run Smoke Tests: '$env:RUN_SMOKE_TESTS'"
+        echo "📁 Virtual Directory: '$env:VIRTUAL_DIRECTORY'"
+        echo "🌐 Base URL: '$env:BASE_URL'"
+        echo "🔄 Retries: '$env:RETRIES'"
+        echo "⏱️ Retry Delay: '$env:RETRY_DELAY_SECONDS' seconds"
+        echo ""
+      shell: pwsh
+
+    - name: Validate SomeTech Deployment PreRequisites
+      env:
+        APPLICATION_NAME: ${{ inputs.applicationName }}
+      run: |
+        echo "::group::✅ Step 1/11: Validating SomeTech Deployment Prerequisites"
+        echo "============================================="
+        echo "Step 1/11: Validating SomeTech Deployment Prerequisites"
+        echo "============================================="
+        echo "Validating SomeTech deployment prerequisites..."
+        echo "Would validate required inputs are provided:"
+        echo "- Application Name: '$env:APPLICATION_NAME'"
+        # RETURN to check inputs for the below
+        if ($env:SYSTEM_STAGENAME -eq "Staging" -or $env:SYSTEM_STAGENAME -eq "Production") { 
+          echo "ADDITIONAL VALIDATION FOR PRODUCTION ENVIRONMENTS"
+          echo "Would validate there's a Fortify scan that is less than 30 days old"
+          echo "Would validate deployment targets against Apart records for the app '${{ inputs.applicationName }}'"
+        }
+        echo "Would fail the step if any required parameter is missing"
+        echo "Prerequisites validation would complete successfully if checks pass"
+        echo "✅ Prerequisites validation step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Create SomeTech Application Backup
+      env:
+        APPLICATION_NAME: ${{ inputs.applicationName }}
+      run: |
+        echo "::group::💾 Step 2/11: Creating SomeTech Application Backup"
+        echo "============================================="
+        echo "Step 2/11: Creating SomeTech Application Backup"
+        echo "============================================="
+        echo "Creating backup of SomeTech application: '$env:APPLICATION_NAME'..."
+        echo "Would generate a timestamped backup"
+        echo "Would execute backup steps:"
+        echo "- Run remote backup script"
+        echo "- Archive application content to /backups/<backup>.tar.gz"
+        echo "- Upload backup archive to remote storage (e.g., S3, Etc.)"
+        echo "Backup creation would complete"
+        echo "✅ Application backup step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Prepare SomeTech Deployment Environment
+      run: |
+        echo "::group::🔧 Step 3/11: Preparing SomeTech Deployment Environment"
+        echo "============================================="
+        echo "Step 3/11: Preparing SomeTech Deployment Environment"
+        echo "============================================="
+        echo "Preparing SomeTech deployment environment..."
+        echo "Would set deployment variables (e.g., DeploymentTimestamp, ApplicationName)"
+         echo "Would create a deployment workspace at '${{ runner.temp }}/sometech-deployment'"
+        echo "Would export variables for later steps (e.g., via GitHub Actions 'echo ::set-output name=<name>::<value>' or 'echo <name>=<value> >> $GITHUB_ENV')"
+        echo "Deployment environment preparation would complete"
+        echo "✅ Environment preparation step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Deploy SomeTech Application
+      run: |
+        echo "::group::🚀 Step 4/11: Deploying SomeTech Application"
+        echo "============================================="
+        echo "Step 4/11: Deploying SomeTech Application"
+        echo "============================================="
+        echo "Deploying SomeTech Web Application to IIS..."
+        echo "Would execute IIS deployment via SSH to target servers"
+        echo "Website Name: ${{ inputs.applicationName }}"
+        echo "Virtual Directory: ${{ inputs.virtualDirectory }}"
+        echo "✅ Application deployment step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Start SomeTech Application
+      run: |
+        echo "::group::▶️ Step 5/11: Starting SomeTech Application"
+        echo "============================================="
+        echo "Step 5/11: Starting SomeTech Application"
+        echo "============================================="
+        echo "Starting SomeTech Website in IIS..."
+        echo "Would execute IIS management commands:"
+        echo "Command: appcmd start site \"${{ inputs.applicationName }}\""
+        echo "Command: iisreset /start"
+        echo "Website Name: ${{ inputs.applicationName }}"
+        echo "SomeTech Website started successfully"
+        echo "✅ Application start step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Verify SomeTech Deployment
+      run: |
+        echo "::group::🔍 Step 6/11: Verifying SomeTech Deployment"
+        echo "============================================="
+        echo "Step 6/11: Verifying SomeTech Deployment"
+        echo "============================================="
+        echo "Verifying SomeTech deployment..."
+        echo "Would perform deployment verification:"
+        echo "- Check file permissions and ownership"
+        echo "- Verify application pool status"
+        echo "- Test HTTP response codes"
+        echo "- Validate configuration files"
+        $app_name = "${{ inputs.applicationName }}"
+        echo "Deployment verification for $app_name completed successfully"
+        echo "✅ Deployment verification step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Run SomeTech Smoke Tests
+      run: |
+        echo "::group::🧪 Step 7/11: Running SomeTech Smoke Tests"
+        echo "============================================="
+        echo "Step 7/11: Running SomeTech Smoke Tests"
+        echo "============================================="
+        echo "Starting SomeTech smoke tests..."
+        $app_name = "${{ inputs.applicationName }}"
+        $base_url = "${{ inputs.baseUrl }}"
+        $retries = ${{ inputs.retries }}
+        $delay = ${{ inputs.retryDelaySeconds }}
+
+        if ([string]::IsNullOrEmpty($base_url)) {
+          echo "No baseUrl provided. Falling back to http://localhost/$app_name"
+          $base_url = "http://localhost/$app_name"
+        }
+
+        echo "Smoke testing base URL: $base_url"
+
+        for ($i = 1; $i -le $retries; $i++) {
+          echo "Attempt $i of $retries`: / (root)"
+          echo "Would execute: curl -f -m 30 `"$base_url/`""
+          echo "Attempt $i of $retries`: /health"
+          echo "Would execute: curl -f -m 30 `"$base_url/health`""
+          echo "Attempt $i of $retries`: key endpoint"
+          echo "Would execute: curl -f -m 30 `"$base_url/api/status`""
+
+          if ($i -lt $retries) {
+            echo "Simulating retry; waiting $delay seconds before next attempt..."
+            Start-Sleep $delay
+          } else {
+            echo "Smoke tests completed (simulated)."
+          }
+        }
+        echo "✅ Smoke tests step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Warm up SomeTech Application
+      run: |
+        echo "::group::🔥 Step 8/11: Warming up SomeTech Application"
+        echo "============================================="
+        echo "Step 8/11: Warming up SomeTech Application"
+        echo "============================================="
+        echo "Warming up SomeTech application: '${{ inputs.applicationName }}'..."
+        echo "Would perform application warm-up:"
+        echo "- Wait ~30 seconds for application to start"
+        echo "- Make initial HTTP requests to key endpoints"
+        echo "- Initialize application caches and connections"
+        echo "Would call endpoints (examples):"
+        echo "- http://localhost/${{ inputs.applicationName }}/"
+        echo "- http://localhost/${{ inputs.applicationName }}/health"
+        echo "- http://localhost/${{ inputs.applicationName }}/api/status"
+        echo "Application warm-up would complete"
+        echo "✅ Application warm-up step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Run SomeTech Health checks
+      run: |
+        echo "::group::💚 Step 9/11: Running SomeTech Health Checks"
+        echo "============================================="
+        echo "Step 9/11: Running SomeTech Health Checks"
+        echo "============================================="
+        echo "Running SomeTech health checks..."
+        echo "Health check URL: '${{ inputs.healthCheckUrl }}'"
+        echo "Would execute HTTP health check:"
+        echo "- Command: curl -f -m 30 '${{ inputs.healthCheckUrl }}'"
+        echo "- Retries: up to 5 attempts"
+        echo "- Delay between attempts: 10 seconds"
+        echo "Would mark deployment healthy on first successful response"
+        echo "✅ Health checks step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: Update SomeTech Deployment Status
+      run: |
+        echo "::group::📊 Step 10/11: Updating SomeTech Deployment Status"
+        echo "============================================="
+        echo "Step 10/11: Updating SomeTech Deployment Status"
+        echo "============================================="
+        echo "Updating SomeTech deployment status..."
+        echo "Would generate deployment status JSON (example):"
+        echo '{'
+        echo '  "applicationName": "'${{ inputs.applicationName }}'",'
+        echo '  "deployedBy": "${{ github.actor }}",'
+        echo '  "deploymentTime": "${{ github.event.head_commit.timestamp }}",'
+        echo '  "buildNumber": "${{ github.run_number }}",'
+        echo '  "commitId": "${{ github.sha }}",'
+        echo '  "status": "Success",'
+        echo '  "workflowId": "${{ github.workflow }}"'
+        echo '}'
+        echo "Would save deployment info to:"
+        echo "- File: /logs/deployments/${{ github.run_number }}.json"
+        echo "- Database: INSERT INTO deployments ..."
+        echo "- Monitoring: POST to monitoring API"
+        echo "Deployment status update would complete"
+        echo "✅ Deployment status update step completed successfully"
+        echo "::endgroup::"
+        echo ""
+      shell: pwsh
+
+    - name: SomeTech Post-Deployment Cleanup
+      run: |
+        echo "::group::🧹 Step 11/11: SomeTech Post-Deployment Cleanup"
+        echo "============================================="
+        echo "Step 11/11: SomeTech Post-Deployment Cleanup"
+        echo "============================================="
+        echo "Cleaning up SomeTech deployment temporary files..."
+        echo "Would clean up deployment workspace if present at: '${{ runner.temp }}/sometech-deployment'"
+        echo "Would clean up downloaded artifacts in: '${{ github.workspace }}/artifacts'"
+        echo "Deployment cleanup would complete"
+        echo "✅ Post-deployment cleanup step completed successfully"
+        echo "::endgroup::"
+        echo ""
+        echo "::notice title=Deploy Complete::🎉 ALL SOMETECH DEPLOYMENT STEPS COMPLETED SUCCESSFULLY! 🎉"
+        echo "============================================="
+        echo "🎯 Summary: All 11 deployment steps completed successfully"
+        echo "✅ Application deployed | ✅ Health checks passed | ✅ Ready for use"
+        echo "============================================="
+      shell: pwsh

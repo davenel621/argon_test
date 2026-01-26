@@ -1,0 +1,232 @@
+name: 'Check Environment Protection Rules'
+description: 'Validates that environment protection rules are properly configured for production deployments'
+
+inputs:
+  github-token:
+    description: 'GitHub token with permissions to read environment protection rules'
+    required: true
+  environment:
+    description: 'Environment name to check protection rules for'
+    required: true
+    default: 'prod'
+  required-team:
+    description: 'Team that must be configured as a required reviewer'
+    required: true
+    default: 'Argon-ADM'
+  organization:
+    description: 'GitHub organization name'
+    required: false
+    default: ${{ github.repository_owner }}
+
+outputs:
+  protection-rules-valid:
+    description: 'Boolean indicating if protection rules are valid'
+    value: ${{ steps.check-rules.outputs.protection-rules-valid }}
+  validation-summary:
+    description: 'Summary of validation results'
+    value: ${{ steps.check-rules.outputs.validation-summary }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check Environment Protection Rules
+      id: check-rules
+      shell: pwsh
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        REPOSITORY: ${{ github.repository }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        REQUIRED_TEAM: ${{ inputs.required-team }}
+        ORGANIZATION: ${{ inputs.organization }}
+      run: |
+        Write-Host "🔍 Checking environment protection rules for '$env:ENVIRONMENT' environment in '$env:REPOSITORY'"
+        Write-Host "📋 Required team: $env:REQUIRED_TEAM"
+        Write-Host ""
+        
+        # Handle token properly - avoid direct env variable interpolation in hashtable
+        $githubToken = $env:GITHUB_TOKEN
+        
+        # Validate token before proceeding
+        if ([string]::IsNullOrEmpty($githubToken)) {
+            Write-Host "❌ GITHUB_TOKEN is null or empty" -ForegroundColor Red
+            Write-Host "::error::GitHub token is required but not provided"
+            exit 1
+        }
+        
+        Write-Host "🔑 Validating GitHub token..."
+        $headers = @{
+            'Authorization' = "Bearer " + $githubToken
+            'Accept' = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+            'User-Agent' = 'GitHub-Actions-Environment-Protection-Check'
+        }
+        
+        # Test token by making a simple API call to get repository info
+        try {
+            $tokenTestUri = "https://api.github.com/repos/$env:REPOSITORY"
+            $tokenTestResponse = Invoke-RestMethod -Uri $tokenTestUri -Headers $headers -TimeoutSec 10
+            Write-Host "✅ Token successfully authenticated with repository access" -ForegroundColor Green
+            Write-Host "🔍 Repository: $($tokenTestResponse.full_name)" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "❌ Token validation failed!" -ForegroundColor Red
+            Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+            if ($_.Exception.Response) {
+                $statusCode = $_.Exception.Response.StatusCode.value__
+                Write-Host "Status Code: $statusCode" -ForegroundColor Red
+                if ($statusCode -eq 401) {
+                    Write-Host "::error::GitHub token is invalid or expired"
+                }
+                elseif ($statusCode -eq 403) {
+                    Write-Host "::error::GitHub token lacks required permissions for repository access"
+                }
+                else {
+                    Write-Host "::error::GitHub token validation failed with status $statusCode"
+                }
+            }
+            else {
+                Write-Host "::error::GitHub token validation failed - network or other error"
+            }
+            exit 1
+        }
+        
+        Write-Host ""
+        
+        $validationResults = @()
+        $isValid = $true
+        
+        try {
+            # Check environment protection
+            Write-Host "🔍 Checking environment protection for '$env:ENVIRONMENT'..."
+            try {
+                $environmentUri = "https://api.github.com/repos/$env:REPOSITORY/environments/$env:ENVIRONMENT"
+                $envResponse = Invoke-RestMethod -Uri $environmentUri -Headers $headers
+                
+                Write-Host "✅ Environment '$env:ENVIRONMENT' found"
+                
+                if ($envResponse.protection_rules -and $envResponse.protection_rules.Count -gt 0) {
+                    $validationResults += "✅ Environment '$env:ENVIRONMENT' has $($envResponse.protection_rules.Count) protection rule(s) configured"
+                    
+                    # Check for required reviewers in environment
+                    $hasEnvReviewers = $false
+                    $hasRequiredTeam = $false
+                    
+                    foreach ($rule in $envResponse.protection_rules) {
+                        Write-Host "🔒 Checking protection rule: $($rule.type)"
+                        
+                        if ($rule.type -eq "required_reviewers") {
+                            $hasEnvReviewers = $true
+                            $validationResults += "✅ Environment requires reviewers for deployments"
+                            
+                            # Check if the required team is in the reviewers list
+                            if ($rule.reviewers) {
+                                foreach ($reviewer in $rule.reviewers) {
+                                    if ($reviewer.type -eq "Team" -and $reviewer.reviewer.slug.ToLower() -eq $env:REQUIRED_TEAM.ToLower()) {
+                                        $hasRequiredTeam = $true
+                                        $validationResults += "✅ Team '$env:REQUIRED_TEAM' is configured as required reviewer"
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                        elseif ($rule.type -eq "wait_timer") {
+                            $validationResults += "✅ Wait timer configured: $($rule.wait_timer) minutes"
+                        }
+                        elseif ($rule.type -eq "branch_policy") {
+                            $validationResults += "✅ Branch policy configured for deployments"
+                        }
+                    }
+                    
+                    if (-not $hasEnvReviewers) {
+                        $validationResults += "❌ Environment '$env:ENVIRONMENT' does not require reviewers for deployments"
+                        $isValid = $false
+                    }
+                    
+                    if ($hasEnvReviewers -and -not $hasRequiredTeam) {
+                        $validationResults += "❌ Team '$env:REQUIRED_TEAM' is not configured as a required reviewer"
+                        $isValid = $false
+                    }
+                    
+                    # Check if administrators can bypass protection rules
+                    if ($envResponse.can_admins_bypass -eq $true) {
+                        $validationResults += "❌ CRITICAL: 'Allow administrators to bypass configured protection rules' is enabled - this must be disabled"
+                        $isValid = $false
+                    } else {
+                        $validationResults += "✅ Administrator bypass protection is properly disabled"
+                    }
+                    
+                } else {
+                    $validationResults += "❌ Environment '$env:ENVIRONMENT' has no protection rules configured"
+                    $isValid = $false
+                }
+                
+                # Check deployment branch policies
+                Write-Host "🔎 Checking deployment branch policies..."
+                try {
+                    $branchPolicyUri = "https://api.github.com/repos/$env:REPOSITORY/environments/$env:ENVIRONMENT/deployment-branch-policies"
+                    $branchPolicyResponse = Invoke-RestMethod -Uri $branchPolicyUri -Headers $headers
+                    if ($branchPolicyResponse.total_count -eq 0) {
+                        $validationResults += "⚠️  No deployment branch policies configured - consider restricting deployments to protected branches"
+                    } else {
+                        $validationResults += "✅ Deployment branch policies are configured ($($branchPolicyResponse.total_count) policies found)"
+                    }
+                } catch {
+                    # 404 is expected if no deployment branch policies are configured
+                    if ($_.Exception.Response -and $_.Exception.Response.StatusCode.value__ -eq 404) {
+                        $validationResults += "⚠️  No deployment branch policies configured - consider restricting deployments to protected branches"
+                    } else {
+                        $validationResults += "⚠️  Could not retrieve deployment branch policies: $($_.Exception.Message)"
+                    }
+                }
+                
+            } catch {
+                if ($_.Exception.Response -and $_.Exception.Response.StatusCode.value__ -eq 404) {
+                    $validationResults += "❌ Environment '$env:ENVIRONMENT' not found - please create the environment with protection rules"
+                    $isValid = $false
+                } else {
+                    Write-Host "❌ Failed to check environment protection: $($_.Exception.Message)"
+                    $validationResults += "❌ Failed to check environment protection: $($_.Exception.Message)"
+                    $isValid = $false
+                }
+            }
+            
+        }
+        catch {
+            Write-Error "Failed to check environment protection rules: $($_.Exception.Message)"
+            $validationResults += "❌ Failed to retrieve environment protection rules: $($_.Exception.Message)"
+            $isValid = $false
+        }
+        
+        # Generate summary
+        Write-Host ""
+        Write-Host "📊 Environment Protection Rules Validation Summary"
+        Write-Host "=================================================="
+        
+        foreach ($result in $validationResults) {
+            Write-Host $result
+        }
+        
+        Write-Host ""
+        if ($isValid) {
+            Write-Host "🎉 Environment protection rules are properly configured!" -ForegroundColor Green
+        } else {
+            Write-Host "⚠️  Environment protection rules validation failed!" -ForegroundColor Red
+            Write-Host "Please ensure the following requirements are met:" -ForegroundColor Yellow
+            Write-Host "  1. Environment '$env:ENVIRONMENT' exists and has protection rules configured" -ForegroundColor Yellow
+            Write-Host "  2. Environment requires reviewers for deployments" -ForegroundColor Yellow
+            Write-Host "  3. Team '$env:REQUIRED_TEAM' is configured as a required reviewer" -ForegroundColor Yellow
+            Write-Host "  4. Administrator bypass protection is disabled" -ForegroundColor Yellow
+        }
+        
+        # Set outputs
+        $validationSummary = $validationResults -join "`n"
+        "protection-rules-valid=$($isValid.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "validation-summary<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        $validationSummary | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        
+        # Exit with appropriate code
+        if (-not $isValid) {
+            Write-Host "::error::Environment protection rules validation failed. See summary above for details."
+            exit 1
+        }

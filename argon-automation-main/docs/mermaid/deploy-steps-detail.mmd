@@ -1,0 +1,502 @@
+---
+config:
+  flowchart:
+    diagramMarginX: 10
+    diagramMarginY: 10
+    nodeSpacing: 50
+    rankSpacing: 50
+    curve: "basis"
+    useMaxWidth: true
+    htmlLabels: true
+  themeVariables:
+    primaryColor: "#fffbf0"
+    primaryTextColor: "#333333"
+    primaryBorderColor: "#cccccc"
+    lineColor: "#666666"
+    sectionBkgColor: "#f9f9f9"
+    altSectionBkgColor: "#ffffff"
+    gridColor: "#e6e6e6"
+    c0: "#ffcccc"
+    c1: "#ccf5ff"
+    c2: "#ccffcc"
+    c3: "#ffffcc"
+    c4: "#f0f0f0"
+    c5: "#ffeecc"
+    c6: "#e6f3ff"
+  svg:
+    useMaxWidth: true
+    padding: 5
+---
+flowchart TD
+    %% GitHub Runner CI/CD Pipeline Execution Flow
+    %% Converted from PlantUML Activity Diagram with Swimlanes
+    
+    Start([Start]) --> PR[PR Created/Updated or Workflow Dispatch]
+    
+    %% Notes for PR trigger
+    PR -.-> Note1["`**Note:** 
+    - Developer creates/updates PR
+    - Manual workflow dispatch
+    - Push to main branch`"]
+    
+    PR --> CheckEnv{Check Environment Protection Rules}
+    
+    %% Protection Rules Check
+    CheckEnv -.-> Note2["`**Environment Protection Check:**
+    - Verify prod environment exists
+    - Check protection rules configured  
+    - Validate ADM team review requirement
+    - Ensure admin bypass blocked
+    - Confirm deployment branch policies`"]
+    
+    CheckEnv -->|Invalid| FailWorkflow[Workflow Fails]
+    FailWorkflow --> Stop1([Stop])
+    
+    CheckEnv -->|Valid| CallReusable[Call Reusable Workflow]
+    CallReusable -.-> Note3["`**Reusable Workflow:**
+    - Extend GitHub Secrets access
+    - Pass application-specific parameters`"]
+    
+    CallReusable --> AllocateRunner[Allocate GitHub Runner]
+    AllocateRunner --> ProvisionRunner[Provision Runner Instance]
+    
+    %% GitHub Runner Section
+    subgraph Runner ["🔧 GitHub Runner"]
+        direction TB
+        RunnerInit[Runner Initialization]
+        ConsumeSecrets[Consume GitHub Secrets]
+        GenToken[Generate GitHub App Token]
+        CheckoutApp[Checkout Application Repository]
+        CheckoutAuto[Checkout Reusable Automation Repository]
+        LoadParams[Load Application Parameters]
+    end
+    
+    ProvisionRunner --> RunnerInit
+    RunnerInit --> ConsumeSecrets
+    ConsumeSecrets --> GenToken
+    
+    GenToken -.-> Note4["`**Security:**
+    - Connect to GitHub App
+    - Generate authentication token
+    - Secure repository access`"]
+    
+    GenToken --> CheckoutApp
+    CheckoutApp -.-> Note5[Download application source code]
+    CheckoutApp --> CheckoutAuto
+    CheckoutAuto -.-> Note6[Download composite actions & workflows]
+    CheckoutAuto --> LoadParams
+    LoadParams -.-> Note7[Parse app-specific configuration]
+    
+    %% Build and Security Section
+    subgraph BuildSec ["🔨 Build & Security Scanning"]
+        direction TB
+        CallBuild[Call Build & Scan Composite Action]
+        InstallTools1[Install Tech-Specific Tools]
+        RunSCA[Run SCA Scan]
+        GenSBOM[Generate SBOM]
+        PubSCA[Publish SCA Scan Results]
+        EnforceSCA[Enforce SCA Policy]
+        RunSAST[Run SAST Scan]
+        GenSARIF[Generate SARIF Report]
+        PubSAST[Publish SAST Scan Results]
+        EnforceSAST[Enforce SAST Policy]
+        RestoreDeps[Restore Dependencies]
+        BuildApp[Build Application]
+        RunTests[Run Unit Tests]
+        PubTests[Publish Unit Test Results]
+        ValidateTests[Validate Unit Test Coverage]
+        CodeSign[Post-Build Code Signing]
+        GenManifest[Generate Build Manifest]
+        StageArtifacts[Stage, Archive & Publish Artifacts]
+    end
+    
+    LoadParams --> CallBuild
+    CallBuild -.-> Note8[Execute composite action from automation repo]
+    CallBuild --> InstallTools1
+    InstallTools1 -.-> Note9[.NET, Node.js, Java, etc.]
+    InstallTools1 --> RunSCA
+    RunSCA --> GenSBOM
+    GenSBOM --> PubSCA
+    PubSCA --> EnforceSCA
+    EnforceSCA --> RunSAST
+    RunSAST --> GenSARIF
+    GenSARIF --> PubSAST
+    PubSAST --> EnforceSAST
+    EnforceSAST --> RestoreDeps
+    RestoreDeps --> BuildApp
+    BuildApp --> RunTests
+    RunTests --> PubTests
+    PubTests --> ValidateTests
+    ValidateTests --> CodeSign
+    CodeSign --> GenManifest
+    GenManifest --> StageArtifacts
+    
+    %% Build Summary
+    StageArtifacts --> CompileBuild[Compile Build Summary]
+    CompileBuild --> PostBuild[Post Build Summary to Job Summaries]
+    
+    PostBuild --> BuildCheck{Build & Security Scans Pass?}
+    BuildCheck -->|No| CleanupFail[Cleanup Runner]
+    CleanupFail --> ReleaseFail[Release Runner Resources]
+    ReleaseFail --> Stop2([Stop])
+    
+    %% Dev Environment Deployment
+    BuildCheck -->|Yes| GenToken2[Generate New Authentication Token]
+    GenToken2 --> CheckoutAuto2[Checkout Reusable Automation Repo]
+    
+    subgraph DevDeploy ["🚀 Dev Environment Deployment"]
+        direction TB
+        CallDevDeploy[Call Deploy Composite Action - Dev]
+        InstallTools2[Install Tech-Specific Tools]
+        DownloadArtifacts1[Download, De-archive & Move Artifacts]
+        RunMock[Run Mock Tests]
+        PubMock[Publish Mock Test Results]
+        ValidateMock[Validate Mock Test Coverage]
+        LoadSSH1[Load SSH Private Keys from Secrets]
+        EstabSSH1[Establish SSH Connection to Dev Server]
+    end
+    
+    CheckoutAuto2 --> CallDevDeploy
+    CallDevDeploy -.-> Note10[Execute deployment composite action]
+    CallDevDeploy --> InstallTools2
+    InstallTools2 --> DownloadArtifacts1
+    DownloadArtifacts1 --> RunMock
+    RunMock --> PubMock
+    PubMock --> ValidateMock
+    ValidateMock --> LoadSSH1
+    LoadSSH1 -.-> Note11[SSH keys securely retrieved from GitHub Secrets]
+    LoadSSH1 --> EstabSSH1
+    
+    EstabSSH1 -.-> Note12["`**SSH Connection Details:**
+    - Key-based authentication
+    - Secure tunnel establishment
+    - Connection validation`"]
+    
+    %% Dev Environment Operations
+    subgraph DevEnv ["🖥️ Dev Environment Operations"]
+        direction TB
+        ValidatePrereq1[Validate Deployment Prerequisites]
+        CreateBackup1[Create Application Backup]
+        TransferPkg1[Transfer Deployment Package]
+        PrepareEnv1[Prepare Deployment Environment]
+        DeployApp1[Deploy Application]
+        StartApp1[Start Application]
+        VerifyDeploy1[Verify Deployment]
+        RunSmoke1[Run Smoke Tests]
+        WarmUp1[Warm Up Application]
+        HealthCheck1[Perform Health Checks]
+        UpdateStatus1[Update Deployment Status]
+        PostCleanup1[Post Deployment Cleanup]
+        CloseSSH1[Close SSH Connection]
+    end
+    
+    EstabSSH1 --> ValidatePrereq1
+    ValidatePrereq1 -.-> Note13[Executed via SSH on target server]
+    ValidatePrereq1 --> CreateBackup1
+    CreateBackup1 -.-> Note14[Remote backup via SSH commands]
+    CreateBackup1 --> TransferPkg1
+    TransferPkg1 -.-> Note15[SCP/SFTP file transfer over SSH]
+    TransferPkg1 --> PrepareEnv1
+    PrepareEnv1 --> DeployApp1
+    DeployApp1 --> StartApp1
+    StartApp1 --> VerifyDeploy1
+    VerifyDeploy1 -.-> Note16[SSH remote command execution]
+    VerifyDeploy1 --> RunSmoke1
+    RunSmoke1 --> WarmUp1
+    WarmUp1 --> HealthCheck1
+    HealthCheck1 --> UpdateStatus1
+    UpdateStatus1 --> PostCleanup1
+    PostCleanup1 --> CloseSSH1
+    CloseSSH1 -.-> Note17[Secure connection cleanup]
+    
+    CloseSSH1 --> CompileDev[Compile Dev Deploy Summary]
+    CompileDev --> PostDev[Post Dev Summary to Job Summaries]
+    
+    PostDev --> DevCheck{Dev Deployment Success?}
+    DevCheck -->|No| CleanupDev[Cleanup & Release Resources]
+    CleanupDev --> Stop3([Stop])
+    
+    %% Test Environment Deployment
+    DevCheck -->|Yes| GenToken3[Generate New Authentication Token]
+    GenToken3 --> CheckoutAuto3[Checkout Reusable Automation Repo]
+    
+    subgraph TestDeploy ["🧪 Test Environment Deployment"]
+        direction TB
+        CallTestDeploy[Call Deploy Composite Action - Test]
+        InstallTools3[Install Tech-Specific Tools]
+        DownloadArtifacts2[Download, De-archive & Move Artifacts]
+        LoadSSH2[Load SSH Private Keys from Secrets]
+        EstabSSH2[Establish SSH Connection to Test Server]
+    end
+    
+    CheckoutAuto3 --> CallTestDeploy
+    CallTestDeploy --> InstallTools3
+    InstallTools3 --> DownloadArtifacts2
+    DownloadArtifacts2 --> LoadSSH2
+    LoadSSH2 --> EstabSSH2
+    
+    EstabSSH2 -.-> Note18["`**SSH Connection to Test Environment:**
+    - Secure key-based authentication
+    - Remote command execution capability
+    - File transfer via SCP/SFTP`"]
+    
+    %% Test Environment Operations
+    subgraph TestEnv ["🧪 Test Environment Operations"]
+        direction TB
+        ValidatePrereq2[Validate Deployment Prerequisites]
+        CreateBackup2[Create Application Backup]
+        TransferPkg2[Transfer Deployment Package]
+        PrepareEnv2[Prepare Deployment Environment]
+        DeployApp2[Deploy Application]
+        StartApp2[Start Application]
+        VerifyDeploy2[Verify Deployment]
+        RunSmoke2[Run Smoke Tests]
+        WarmUp2[Warm Up Application]
+        RunIntegration[Run Integration Tests]
+        PubIntegration[Publish Integration Test Results]
+        ValidateIntegration[Validate Integration Test Coverage]
+        HealthCheck2[Perform Health Checks]
+        UpdateStatus2[Update Deployment Status]
+        PostCleanup2[Post Deployment Cleanup]
+        CloseSSH2[Close SSH Connection]
+    end
+    
+    EstabSSH2 --> ValidatePrereq2
+    ValidatePrereq2 --> CreateBackup2
+    CreateBackup2 --> TransferPkg2
+    TransferPkg2 -.-> Note19[File transfer over SSH tunnel]
+    TransferPkg2 --> PrepareEnv2
+    PrepareEnv2 --> DeployApp2
+    DeployApp2 --> StartApp2
+    StartApp2 --> VerifyDeploy2
+    VerifyDeploy2 --> RunSmoke2
+    RunSmoke2 --> WarmUp2
+    WarmUp2 --> RunIntegration
+    RunIntegration -.-> Note20[Tests executed via SSH commands]
+    RunIntegration --> PubIntegration
+    PubIntegration --> ValidateIntegration
+    ValidateIntegration --> HealthCheck2
+    HealthCheck2 --> UpdateStatus2
+    UpdateStatus2 --> PostCleanup2
+    PostCleanup2 --> CloseSSH2
+    
+    CloseSSH2 --> CompileTest[Compile Test Deploy Summary]
+    CompileTest --> PostTest[Post Test Summary to Job Summaries]
+    
+    PostTest --> TestCheck{Test Deployment Success?}
+    TestCheck -->|No| CleanupTest[Cleanup & Release Resources]
+    CleanupTest --> Stop4([Stop])
+    
+    %% Staging Environment Deployment
+    TestCheck -->|Yes| GenToken4[Generate New Authentication Token]
+    GenToken4 --> CheckoutAuto4[Checkout Reusable Automation Repo]
+    
+    subgraph StagingDeploy ["🎭 Staging Environment Deployment"]
+        direction TB
+        CallStagingDeploy[Call Deploy Composite Action - Staging]
+        InstallTools4[Install Tech-Specific Tools]
+        DownloadArtifacts3[Download, De-archive & Move Artifacts]
+        LoadSSH3[Load SSH Private Keys from Secrets]
+        EstabSSH3[Establish SSH Connection to Staging Server]
+    end
+    
+    CheckoutAuto4 --> CallStagingDeploy
+    CallStagingDeploy --> InstallTools4
+    InstallTools4 --> DownloadArtifacts3
+    DownloadArtifacts3 --> LoadSSH3
+    LoadSSH3 --> EstabSSH3
+    
+    EstabSSH3 -.-> Note21["`**SSH Connection to Staging Environment:**
+    - Production-like security protocols
+    - Encrypted file transfers
+    - Remote performance test execution`"]
+    
+    %% Staging Environment Operations
+    subgraph StagingEnv ["🎭 Staging Environment Operations"]
+        direction TB
+        ValidatePrereq3[Validate Deployment Prerequisites]
+        CompleteCert[Complete Deployment Certification]
+        CreateBackup3[Create Application Backup]
+        TransferPkg3[Transfer Deployment Package]
+        PrepareEnv3[Prepare Deployment Environment]
+        DeployApp3[Deploy Application]
+        StartApp3[Start Application]
+        VerifyDeploy3[Verify Deployment]
+        RunSmoke3[Run Smoke Tests]
+        WarmUp3[Warm Up Application]
+        RunE2E[Run End-to-End Tests]
+        PubE2E[Publish End-to-End Test Results]
+        ValidateE2E[Validate End-to-End Test Coverage]
+        HealthCheck3[Perform Health Checks]
+        RunPerf[Run Performance & Load Tests]
+        PubPerf[Publish Performance Test Results]
+        UpdateStatus3[Update Deployment Status]
+        PostCleanup3[Post Deployment Cleanup]
+        CloseSSH3[Close SSH Connection]
+    end
+    
+    EstabSSH3 --> ValidatePrereq3
+    ValidatePrereq3 --> CompleteCert
+    CompleteCert --> CreateBackup3
+    CreateBackup3 --> TransferPkg3
+    TransferPkg3 -.-> Note22[Secure file transfer via SSH]
+    TransferPkg3 --> PrepareEnv3
+    PrepareEnv3 --> DeployApp3
+    DeployApp3 --> StartApp3
+    StartApp3 --> VerifyDeploy3
+    VerifyDeploy3 --> RunSmoke3
+    RunSmoke3 --> WarmUp3
+    WarmUp3 --> RunE2E
+    RunE2E -.-> Note23[Comprehensive testing via SSH]
+    RunE2E --> PubE2E
+    PubE2E --> ValidateE2E
+    ValidateE2E --> HealthCheck3
+    HealthCheck3 --> RunPerf
+    RunPerf -.-> Note24[Load testing executed remotely]
+    RunPerf --> PubPerf
+    PubPerf --> UpdateStatus3
+    UpdateStatus3 --> PostCleanup3
+    PostCleanup3 --> CloseSSH3
+    
+    CloseSSH3 --> CompileStaging[Compile Staging Deploy Summary]
+    CompileStaging --> PostStaging[Post Staging Summary to Job Summaries]
+    
+    PostStaging --> StagingCheck{Staging Deployment Success?}
+    StagingCheck -->|No| CleanupStaging[Cleanup & Release Resources]
+    CleanupStaging --> Stop5([Stop])
+    
+    %% Production Approval and Deployment
+    StagingCheck -->|Yes| PauseProd[Pause Deploy to Prod Job]
+    PauseProd --> RequestApproval[Request ADM Team Approval]
+    
+    RequestApproval -.-> Note25["`**ADM Approval:**
+    - One or more ADM team members
+    - Environment protection rules enforced
+    - Manual approval required`"]
+    
+    RequestApproval --> WaitApproval[Wait for ADM Approval]
+    WaitApproval --> ApprovalCheck{ADM Approval Received?}
+    
+    ApprovalCheck -->|No| CancelDeploy[Deployment Cancelled]
+    CancelDeploy --> CleanupCancel[Cleanup & Release Resources]
+    CleanupCancel --> Stop6([Stop])
+    
+    ApprovalCheck -->|Yes| GenToken5[Generate New Authentication Token]
+    GenToken5 --> CheckoutAuto5[Checkout Reusable Automation Repo]
+    CheckoutAuto5 --> RerunProtection[Re-run Environment Protection Check]
+    
+    RerunProtection -.-> Note26["`**Critical Security Validation:**
+    - Verify prod rules not tampered
+    - Confirm workflow compliance
+    - Critical security validation`"]
+    
+    RerunProtection --> ProtectionCheck{Protection Check Passes?}
+    ProtectionCheck -->|No| ProdFail[Production Deployment Fails]
+    ProdFail --> CleanupProdFail[Cleanup & Release Resources]
+    CleanupProdFail --> Stop7([Stop])
+    
+    %% Production Deployment
+    ProtectionCheck -->|Yes| CallProdDeploy[Call Deploy Composite Action - Prod]
+    CallProdDeploy --> InstallTools5[Install Tech-Specific Tools]
+    InstallTools5 --> DownloadArtifacts4[Download, De-archive & Move Artifacts]
+    DownloadArtifacts4 --> LoadSSH4[Load SSH Private Keys from Secrets]
+    LoadSSH4 --> EstabSSH4[Establish SSH Connection to Production Server]
+    
+    EstabSSH4 -.-> Note27["`**SSH Connection to Production Environment:**
+    - Highest security standards
+    - Encrypted connections only
+    - Audit trail for all operations
+    - Zero-trust authentication`"]
+    
+    %% Production Environment Operations
+    subgraph ProdEnv ["🚀 Production Environment Operations"]
+        direction TB
+        ValidatePrereq4[Validate Deployment Prerequisites]
+        VerifyCert[Verify Deployment Certification]
+        CreateBackup4[Create Application Backup]
+        TransferPkg4[Transfer Deployment Package]
+        PrepareEnv4[Prepare Deployment Environment]
+        DeployApp4[Deploy Application]
+        StartApp4[Start Application]
+        VerifyDeploy4[Verify Deployment]
+        RunSmoke4[Run Smoke Tests]
+        WarmUp4[Warm Up Application]
+        HealthCheck4[Perform Health Checks]
+        UpdateStatus4[Update Deployment Status]
+        PostCleanup4[Post Deployment Cleanup]
+        CloseSSH4[Close SSH Connection]
+    end
+    
+    EstabSSH4 --> ValidatePrereq4
+    ValidatePrereq4 --> VerifyCert
+    VerifyCert --> CreateBackup4
+    CreateBackup4 -.-> Note28[Critical production backup via SSH]
+    CreateBackup4 --> TransferPkg4
+    TransferPkg4 -.-> Note29[Secure production file transfer]
+    TransferPkg4 --> PrepareEnv4
+    PrepareEnv4 --> DeployApp4
+    DeployApp4 -.-> Note30[Remote deployment execution]
+    DeployApp4 --> StartApp4
+    StartApp4 --> VerifyDeploy4
+    VerifyDeploy4 --> RunSmoke4
+    RunSmoke4 -.-> Note31[Production validation tests]
+    RunSmoke4 --> WarmUp4
+    WarmUp4 --> HealthCheck4
+    HealthCheck4 -.-> Note32[Critical health monitoring]
+    HealthCheck4 --> UpdateStatus4
+    UpdateStatus4 --> PostCleanup4
+    PostCleanup4 --> CloseSSH4
+    CloseSSH4 -.-> Note33[Secure connection termination]
+    
+    CloseSSH4 --> CompileProd[Compile Prod Deploy Summary]
+    CompileProd --> PostProd[Post Prod Summary to Job Summaries]
+    
+    %% Final Cleanup and Summary
+    PostProd --> ExecSummary[Execute Workflow Summary Job]
+    ExecSummary --> CompileComp[Compile Comprehensive Summary]
+    
+    CompileComp -.-> Note34["`**Comprehensive Summary:**
+    - Easy to read summary
+    - Complete workflow run overview
+    - All environment deployment results`"]
+    
+    CompileComp --> PostFinal[Post Final Summary to Job Summaries]
+    
+    %% Final Cleanup
+    subgraph FinalCleanup ["🧹 Final Cleanup"]
+        direction TB
+        ClearTemp[Clear Temporary Files]
+        UnsetVars[Unset Sensitive Variables]
+        CleanWorkspace[Clean Workspace]
+        UploadLogs[Upload Final Logs]
+        ReleaseRunner[Release Runner Resources]
+        DeallocateRunner[Deallocate Runner Instance]
+        ArchiveLogs[Archive Complete Workflow Logs]
+    end
+    
+    PostFinal --> ClearTemp
+    ClearTemp --> UnsetVars
+    UnsetVars --> CleanWorkspace
+    CleanWorkspace --> UploadLogs
+    UploadLogs --> ReleaseRunner
+    ReleaseRunner --> DeallocateRunner
+    DeallocateRunner --> ArchiveLogs
+    
+    ArchiveLogs --> End([End])
+
+    %% Styling for different types of activities
+    classDef security fill:#ffcccc,stroke:#ff0000,stroke-width:2px,color:#000
+    classDef build fill:#ccf5ff,stroke:#0099cc,stroke-width:2px,color:#000
+    classDef deploy fill:#ccffcc,stroke:#009900,stroke-width:2px,color:#000
+    classDef approval fill:#ffffcc,stroke:#ffaa00,stroke-width:2px,color:#000
+    classDef cleanup fill:#f0f0f0,stroke:#666666,stroke-width:2px,color:#000
+    classDef decision fill:#ffeecc,stroke:#ff8800,stroke-width:2px,color:#000
+    classDef environment fill:#e6f3ff,stroke:#0066cc,stroke-width:2px,color:#000
+
+    %% Apply classes to nodes
+    class CheckEnv,FailWorkflow,ConsumeSecrets,GenToken,GenToken2,GenToken3,GenToken4,GenToken5,LoadSSH1,LoadSSH2,LoadSSH3,LoadSSH4,RerunProtection security
+    class InstallTools1,InstallTools2,InstallTools3,InstallTools4,InstallTools5,RunSCA,GenSBOM,PubSCA,EnforceSCA,RunSAST,GenSARIF,PubSAST,EnforceSAST,RestoreDeps,BuildApp,RunTests,PubTests,ValidateTests,CodeSign,GenManifest,StageArtifacts,RunMock,PubMock,ValidateMock,RunIntegration,PubIntegration,ValidateIntegration,RunE2E,PubE2E,ValidateE2E,RunPerf,PubPerf,RunSmoke1,RunSmoke2,RunSmoke3,RunSmoke4 build
+    class CallBuild,CallDevDeploy,CallTestDeploy,CallStagingDeploy,CallProdDeploy,DownloadArtifacts1,DownloadArtifacts2,DownloadArtifacts3,DownloadArtifacts4,EstabSSH1,EstabSSH2,EstabSSH3,EstabSSH4,ValidatePrereq1,ValidatePrereq2,ValidatePrereq3,ValidatePrereq4,CreateBackup1,CreateBackup2,CreateBackup3,CreateBackup4,TransferPkg1,TransferPkg2,TransferPkg3,TransferPkg4,PrepareEnv1,PrepareEnv2,PrepareEnv3,PrepareEnv4,DeployApp1,DeployApp2,DeployApp3,DeployApp4,StartApp1,StartApp2,StartApp3,StartApp4,VerifyDeploy1,VerifyDeploy2,VerifyDeploy3,VerifyDeploy4,WarmUp1,WarmUp2,WarmUp3,WarmUp4,HealthCheck1,HealthCheck2,HealthCheck3,HealthCheck4,UpdateStatus1,UpdateStatus2,UpdateStatus3,UpdateStatus4,PostCleanup1,PostCleanup2,PostCleanup3,PostCleanup4,CloseSSH1,CloseSSH2,CloseSSH3,CloseSSH4,CompleteCert,VerifyCert deploy
+    class PauseProd,RequestApproval,WaitApproval approval
+    class CleanupFail,ReleaseFail,CleanupDev,CleanupTest,CleanupStaging,CancelDeploy,CleanupCancel,ProdFail,CleanupProdFail,ClearTemp,UnsetVars,CleanWorkspace,UploadLogs,ReleaseRunner,DeallocateRunner,ArchiveLogs cleanup
+    class BuildCheck,DevCheck,TestCheck,StagingCheck,ApprovalCheck,ProtectionCheck decision

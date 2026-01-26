@@ -1,0 +1,89 @@
+name: 'SSIS/SSRS Build And Scan Composite Action'
+description: 'A composite action for SSIS/SSRS build and scan operations'
+
+inputs:
+  SSC_URL:
+    description: 'Fortify Software Security Center URL'
+    required: true
+  SSC_TOKEN:
+    description: 'Fortify Software Security Center authentication token'
+    required: true
+  SC_SAST_CLIENT_AUTH_TOKEN:
+    description: 'Fortify ScanCentral SAST client authentication token'
+    required: true
+  DEBRICKED_TOKEN:
+    description: 'Debricked authentication token for dependency scanning'
+    required: true
+  SONAR_TOKEN:
+    description: 'SonarQube authentication token'
+    required: true
+  SONAR_HOST_URL:
+    description: 'SonarQube server URL'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install sqlcmd
+      shell: pwsh
+      run: |
+        $installed = winget list --id Microsoft.SqlServer.2022.CommandLineUtilities --accept-source-agreements 2>$null
+        if ($installed -match "Microsoft.SqlServer.2022.CommandLineUtilities") {
+          Write-Host "sqlcmd is already installed. Skipping installation."
+        } else {
+          Write-Host "Installing sqlcmd..."
+          winget install --id Microsoft.SqlServer.2022.CommandLineUtilities --accept-source-agreements --accept-package-agreements
+        }
+
+    - name: Install SqlServer PowerShell Module
+      shell: pwsh
+      run: |
+        $moduleName = "SqlServer"
+        $installed = Get-Module -ListAvailable -Name $moduleName
+        if ($installed) {
+          Write-Host "$moduleName module is already installed. Skipping installation."
+        } else {
+          Write-Host "Installing $moduleName module..."
+          Install-Module -Name $moduleName -Scope CurrentUser -Force -AllowClobber
+        }
+
+    - name: Create Build Directory
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path "./build"
+
+    - name: Build SSIS/SSRS Application
+      working-directory: ./${{ github.event.repository.name }}
+      shell: pwsh
+      env:
+        REPO_NAME: ${{ github.event.repository.name }}
+      run: |
+        msbuild /p:Configuration=Release /p:OutputPath="..\build"
+
+    - name: Run SSIS/SSRS Unit Tests
+      shell: pwsh
+      working-directory: ./build
+      continue-on-error: false
+      env:
+        REPO_NAME: ${{ github.event.repository.name }}
+      run: |
+        $ssisUnitCmd = "./ssisUnitCmd.exe"
+        $testSuite = "./$env:REPO_NAME/tests/test-suite.xml"
+        $resultFile = "./$env:REPO_NAME/tests/test-results.xml"
+
+        Start-Process -FilePath $ssisUnitCmd `
+              -ArgumentList "-f `"$testSuite`" -r `"$resultFile`"" `
+              -NoNewWindow -Wait
+
+    - name: Run Security Scans
+      uses: ./composites/common/security-scans
+      with:
+        SSC_URL: ${{ inputs.SSC_URL }}
+        SSC_TOKEN: ${{ inputs.SSC_TOKEN }}
+        SC_SAST_CLIENT_AUTH_TOKEN: ${{ inputs.SC_SAST_CLIENT_AUTH_TOKEN }}
+        DEBRICKED_TOKEN: ${{ inputs.DEBRICKED_TOKEN }}
+        SONAR_TOKEN: ${{ inputs.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ inputs.SONAR_HOST_URL }}
+
+    - name: Stage, Archive, And Publish Artifacts
+      uses: ./composites/common/stage-archive-publish

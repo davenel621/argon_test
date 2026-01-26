@@ -1,0 +1,310 @@
+---
+config:
+  flowchart:
+    diagramMarginX: 10
+    diagramMarginY: 10
+    nodeSpacing: 50
+    rankSpacing: 50
+    curve: "basis"
+    useMaxWidth: true
+    htmlLabels: true
+  themeVariables:
+    primaryColor: "#fffbf0"
+    primaryTextColor: "#333333"
+    primaryBorderColor: "#cccccc"
+    lineColor: "#666666"
+    sectionBkgColor: "#f9f9f9"
+    altSectionBkgColor: "#ffffff"
+    gridColor: "#e6e6e6"
+    c0: "#ffcccc"
+    c1: "#ccf5ff"
+    c2: "#ccffcc"
+    c3: "#ffffcc"
+    c4: "#f0f0f0"
+    c5: "#ffeecc"
+    c6: "#e6f3ff"
+  svg:
+    useMaxWidth: true
+    padding: 5
+---
+flowchart TD
+    %% Start point
+    START(["`🚀 **Workflow Trigger**
+    GitHub Actions Workflow Started`"])
+    
+    %% Initialization Phase
+    subgraph INIT ["`🔧 **Initialization**`"]
+        AUTH["`🔐 **Generate GitHub App Token**
+        Authentication Setup`"]
+        CHECKOUT["`📥 **Checkout Repositories**
+        Source + Automation Code`"]
+    end
+    
+    %% Build Tools Setup
+    subgraph TOOLS ["`🛠️ **Build Tools Setup**`"]
+        INSTALL_TOOLS["`⚙️ **Install Build Tools**
+        SomeTech Build Environment`"]
+    end
+    
+    %% Security Analysis - SCA Phase
+    subgraph SCA_PHASE ["`🔍 **Security Analysis - SCA**`"]
+        SCA_PREP["`🔧 **Prepare SCA Tool**
+        Software Composition Analysis Setup`"]
+        SCA_SCAN["`🔍 **Run SCA Scan**
+        Dependency Vulnerability Scanning`"]
+        SBOM_GEN["`📋 **Generate SBOM**
+        Software Bill of Materials`"]
+        SCA_PUBLISH["`📤 **Publish SCA Results**
+        Security Report Publication`"]
+        SCA_POLICY["`⚖️ **Enforce SCA Policy**
+        Vulnerability Threshold Check`"]
+        SCA_FAIL["`❌ **Build Failed**
+        SCA Policy Violations Detected`"]
+    end
+    
+    %% Security Analysis - SAST Phase
+    subgraph SAST_PHASE ["`🔬 **Security Analysis - SAST**`"]
+        SAST_PREP["`🔧 **Prepare SAST Tool**
+        Static Application Security Testing Setup`"]
+        SAST_SCAN["`🔍 **Run SAST Scan**
+        Static Code Analysis`"]
+        SARIF_GEN["`📊 **Generate SARIF Report**
+        Security Analysis Results Format`"]
+        SAST_PUBLISH["`📤 **Publish SAST Results**
+        Static Analysis Report Publication`"]
+        SAST_POLICY["`⚖️ **Enforce SAST Policy**
+        Static Analysis Policy Check`"]
+        SAST_FAIL["`❌ **Build Failed**
+        SAST Policy Violations Detected`"]
+    end
+    
+    %% Application Build Phase
+    subgraph BUILD_PHASE ["`🏗️ **Application Build**`"]
+        RESTORE["`📦 **Restore Dependencies**
+        Package and Library Resolution`"]
+        BUILD["`🔨 **Build Application**
+        Source Code Compilation`"]
+        BUILD_FAIL["`❌ **Build Failed**
+        Compilation Errors`"]
+    end
+    
+    %% Testing & Validation Phase
+    subgraph TEST_PHASE ["`🧪 **Testing & Validation**`"]
+        UNIT_TESTS["`🧪 **Run Unit Tests**
+        Automated Test Execution`"]
+        TEST_PUBLISH["`📤 **Publish Test Results**
+        Test Report Generation`"]
+        TEST_FAIL["`❌ **Build Failed**
+        Unit Test Failures`"]
+    end
+    
+    %% Additional Validation Phase
+    subgraph VALIDATION ["`✅ **Additional Validation**`"]
+        APP_VALIDATION["`🔍 **Application Test Validation**
+        Technology-Specific Validation`"]
+        POST_BUILD["`🔧 **Post-Build Processing**
+        Artifact Preparation`"]
+        MANIFEST["`📋 **Generate Application Manifest**
+        Deployment Metadata Creation`"]
+    end
+    
+    %% Build Completion Phase
+    subgraph COMPLETION ["`🎉 **Build Completion**`"]
+        COMPLETE["`✅ **Build Process Complete**
+        All Steps Successful`"]
+        SUMMARY["`📊 **Generate Build Summary**
+        Workflow Summary Report`"]
+    end
+    
+    %% End point
+    END(["`🏁 **End**`"])
+    
+    %% Flow connections - Initialization
+    START --> AUTH
+    AUTH --> CHECKOUT
+    CHECKOUT --> INSTALL_TOOLS
+    
+    %% Flow connections - SCA Phase
+    INSTALL_TOOLS --> SCA_PREP
+    SCA_PREP --> SCA_SCAN
+    SCA_SCAN --> SBOM_GEN
+    SBOM_GEN --> SCA_PUBLISH
+    SCA_PUBLISH --> SCA_POLICY
+    
+    %% SCA Decision
+    SCA_POLICY --> SCA_DECISION{"`❓ **SCA Policy Violations?**`"}
+    SCA_DECISION -->|"`🔴 **Yes**`"| SCA_FAIL
+    SCA_DECISION -->|"`🟢 **No**`"| SAST_PREP
+    SCA_FAIL --> END
+    
+    %% Flow connections - SAST Phase
+    SAST_PREP --> SAST_SCAN
+    SAST_SCAN --> SARIF_GEN
+    SARIF_GEN --> SAST_PUBLISH
+    SAST_PUBLISH --> SAST_POLICY
+    
+    %% SAST Decision
+    SAST_POLICY --> SAST_DECISION{"`❓ **SAST Policy Violations?**`"}
+    SAST_DECISION -->|"`🔴 **Yes**`"| SAST_FAIL
+    SAST_DECISION -->|"`🟢 **No**`"| RESTORE
+    SAST_FAIL --> END
+    
+    %% Flow connections - Build Phase
+    RESTORE --> BUILD
+    BUILD --> BUILD_DECISION{"`❓ **Build Successful?**`"}
+    BUILD_DECISION -->|"`🔴 **No**`"| BUILD_FAIL
+    BUILD_DECISION -->|"`🟢 **Yes**`"| UNIT_TESTS
+    BUILD_FAIL --> END
+    
+    %% Flow connections - Test Phase
+    UNIT_TESTS --> TEST_PUBLISH
+    TEST_PUBLISH --> TEST_DECISION{"`❓ **Tests Failed?**`"}
+    TEST_DECISION -->|"`🔴 **Yes**`"| TEST_FAIL
+    TEST_DECISION -->|"`🟢 **No**`"| APP_VALIDATION
+    TEST_FAIL --> END
+    
+    %% Flow connections - Validation and Completion
+    APP_VALIDATION --> POST_BUILD
+    POST_BUILD --> MANIFEST
+    MANIFEST --> COMPLETE
+    COMPLETE --> SUMMARY
+    SUMMARY --> END
+    
+    %% Annotations with dotted connections
+    AUTH -.-> AUTH_NOTE["`**Triggers:**
+    • Push to main branch
+    • Pull request  
+    • Manual dispatch
+    • Scheduled runs`"]
+    
+    CHECKOUT -.-> CHECKOUT_NOTE["`**Repositories:**
+    • Current application repo (source code)
+    • Centralized automation repo (composite actions)
+    • Both checked out with proper tokens`"]
+    
+    INSTALL_TOOLS -.-> TOOLS_NOTE["`**Actions:**
+    • Install SomeTech SDK
+    • Configure build environment
+    • Set up deployment tools
+    • Verify tool versions`"]
+    
+    SCA_PREP -.-> SCA_PREP_NOTE["`**Configuration:**
+    • Tool: {scaTool} (default: demo-sca-tool)
+    • Package Manager: {packageManager}
+    • Source Path: {sourcePath}`"]
+    
+    SCA_SCAN -.-> SCA_SCAN_NOTE["`**Scans For:**
+    • Known vulnerabilities in dependencies
+    • License compliance issues
+    • Outdated packages
+    • Security advisories`"]
+    
+    SBOM_GEN -.-> SBOM_NOTE["`**SBOM Contents:**
+    • Complete dependency inventory
+    • Version information
+    • License details
+    • Vulnerability mappings`"]
+    
+    SCA_POLICY -.-> SCA_POLICY_NOTE["`**Policy Enforcement:**
+    • Severity Threshold: {severityThreshold}
+    • Fail on Vulnerabilities: {failOnVulns}
+    • Block deployment if violations found`"]
+    
+    SAST_PREP -.-> SAST_PREP_NOTE["`**Configuration:**
+    • Tool: {sastTool} (default: semgrep)
+    • Languages: {languages}
+    • Ruleset: {ruleset}`"]
+    
+    SAST_SCAN -.-> SAST_SCAN_NOTE["`**Analyzes:**
+    • Security vulnerabilities in code
+    • Code quality issues
+    • Best practice violations
+    • Custom rule violations`"]
+    
+    SARIF_GEN -.-> SARIF_NOTE["`**SARIF Report:**
+    • Standardized security findings
+    • GitHub Security tab integration
+    • Detailed vulnerability locations`"]
+    
+    SAST_POLICY -.-> SAST_POLICY_NOTE["`**Policy Enforcement:**
+    • Same threshold as SCA
+    • Combined with SCA for overall security
+    • Blocks build if critical issues found`"]
+    
+    RESTORE -.-> RESTORE_NOTE["`**Actions:**
+    • NuGet/NPM/Maven restore
+    • Package feed: {packageFeed}
+    • Dependency resolution
+    • Cache optimization`"]
+    
+    BUILD -.-> BUILD_NOTE["`**Build Process:**
+    • Compile source code
+    • Generate assemblies/artifacts
+    • Configuration: Release
+    • Output optimization`"]
+    
+    UNIT_TESTS -.-> TEST_NOTE["`**Test Execution:**
+    • Pattern: {testPattern}
+    • Framework: xUnit/NUnit/Jest
+    • Parallel execution
+    • Code coverage collection`"]
+    
+    TEST_PUBLISH -.-> TEST_PUB_NOTE["`**Test Reports:**
+    • Test results summary
+    • Code coverage metrics
+    • Failed test details
+    • Performance metrics`"]
+    
+    APP_VALIDATION -.-> APP_VAL_NOTE["`**Validation:**
+    • Application-specific tests
+    • Integration checks
+    • Performance benchmarks`"]
+    
+    POST_BUILD -.-> POST_NOTE["`**Processing:**
+    • Code signing
+    • Artifact validation
+    • Security scanning of outputs
+    • Metadata generation`"]
+    
+    MANIFEST -.-> MANIFEST_NOTE["`**Manifest Contents:**
+    • Build metadata
+    • Deployment configuration
+    • Version information
+    • Environment requirements`"]
+    
+    COMPLETE -.-> COMPLETE_NOTE["`**Artifacts Ready:**
+    • Compiled application
+    • Security reports (SCA, SAST, SARIF)
+    • SBOM documentation
+    • Test results and coverage
+    • Deployment manifest`"]
+    
+    SUMMARY -.-> SUMMARY_NOTE["`**Summary Includes:**
+    • All step statuses
+    • Security scan results
+    • Test metrics
+    • Build artifacts list
+    • Ready for deployment`"]
+    
+    %% Styling classes
+    classDef initActivity fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#000
+    classDef securityActivity fill:#FFEBEE,stroke:#C62828,stroke-width:2px,color:#000
+    classDef buildActivity fill:#E8F5E8,stroke:#2E7D32,stroke-width:2px,color:#000
+    classDef testActivity fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#000
+    classDef failActivity fill:#FFCDD2,stroke:#D32F2F,stroke-width:3px,color:#000
+    classDef completeActivity fill:#E8F5E8,stroke:#388E3C,stroke-width:2px,color:#000
+    classDef decisionNode fill:#FFF9C4,stroke:#F57F17,stroke-width:2px,color:#000
+    classDef startEndNode fill:#F3E5F5,stroke:#7B1FA2,stroke-width:3px,color:#000
+    classDef noteStyle fill:#FFFDE7,stroke:#827717,stroke-width:1px,color:#000,stroke-dasharray: 3 3
+    
+    %% Apply classes to nodes
+    class AUTH,CHECKOUT initActivity
+    class INSTALL_TOOLS buildActivity
+    class SCA_PREP,SCA_SCAN,SBOM_GEN,SCA_PUBLISH,SCA_POLICY,SAST_PREP,SAST_SCAN,SARIF_GEN,SAST_PUBLISH,SAST_POLICY securityActivity
+    class RESTORE,BUILD buildActivity
+    class UNIT_TESTS,TEST_PUBLISH,APP_VALIDATION testActivity
+    class POST_BUILD,MANIFEST,COMPLETE,SUMMARY completeActivity
+    class SCA_FAIL,SAST_FAIL,BUILD_FAIL,TEST_FAIL failActivity
+    class SCA_DECISION,SAST_DECISION,BUILD_DECISION,TEST_DECISION decisionNode
+    class START,END startEndNode
+    class AUTH_NOTE,CHECKOUT_NOTE,TOOLS_NOTE,SCA_PREP_NOTE,SCA_SCAN_NOTE,SBOM_NOTE,SCA_POLICY_NOTE,SAST_PREP_NOTE,SAST_SCAN_NOTE,SARIF_NOTE,SAST_POLICY_NOTE,RESTORE_NOTE,BUILD_NOTE,TEST_NOTE,TEST_PUB_NOTE,APP_VAL_NOTE,POST_NOTE,MANIFEST_NOTE,COMPLETE_NOTE,SUMMARY_NOTE noteStyle

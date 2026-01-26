@@ -1,0 +1,35 @@
+name: Run SSIS/SSRS Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - 'users/**'
+  workflow_dispatch:
+    inputs:
+      remoteUser:
+        description: 'SSH username for the remote server'
+        required: true
+        type: string
+      remoteHost:
+        description: 'Remote host address'
+        required: true
+        type: string
+      remotePath:
+        description: 'Path on the remote server to deploy artifacts'
+        required: true
+        type: string
+      webAppDirectory:
+        description: 'Target directory on the remote server for the web app'
+        required: true
+        type: string
+
+jobs:        
+  run-pipeline:
+    uses: ./.github/workflows/rw-ssis-ssrs-build-and-deploy.yaml
+    with:
+      remoteUser: ${{ inputs.remoteUser }}
+      remoteHost: ${{ inputs.remoteHost }}
+      remotePath: ${{ inputs.remotePath }}
+      webAppDirectory: ${{ inputs.webAppDirectory }}
+    secrets: inherit

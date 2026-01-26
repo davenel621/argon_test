@@ -1,0 +1,73 @@
+name: 'Stage Archive and Publish Artifacts'
+description: 'Universal composite action to stage, archive and publish build artifacts'
+
+runs:
+  using: "composite"
+  steps:
+  
+  # NOTE: not sure this staging is needed? As we are having the build
+  # step output to drop/app and drop/tests.
+  # what would this staging step do?
+
+    # - name: Stage Artifacts
+    #   working-directory: ${{ github.workspace }}/${{ github.event.repository.name }}
+    #   shell: pwsh
+    #   run: |
+        
+
+    - name: Archive Artifacts
+      working-directory: ${{ github.workspace }}/${{ github.event.repository.name }}
+      shell: pwsh
+      run: |
+        if (Test-Path "drop") {
+          # Create drop directory for individual archives if it doesn't exist
+          $archiveCreated = $false
+          
+          # Archive app directory if it exists
+          if (Test-Path "drop\app") {
+            $appContents = Get-ChildItem "drop\app" -Recurse -ErrorAction SilentlyContinue
+            if ($appContents.Count -gt 0) {
+              Compress-Archive -Path "drop\app\*" -DestinationPath "drop\app.zip" -Force
+              Write-Host "Successfully created app.zip from drop\app directory"
+              $archiveCreated = $true
+              
+              Write-Host "Archived app files:"
+              $appContents | ForEach-Object { Write-Host "  $($_.FullName)" }
+            } else {
+              Write-Warning "App directory exists but is empty"
+            }
+          } else {
+            Write-Warning "App directory does not exist in drop folder"
+          }
+          
+          # Archive tests directory if it exists
+          if (Test-Path "drop\tests") {
+            $testsContents = Get-ChildItem "drop\tests" -Recurse -ErrorAction SilentlyContinue
+            if ($testsContents.Count -gt 0) {
+              Compress-Archive -Path "drop\tests\*" -DestinationPath "drop\tests.zip" -Force
+              Write-Host "Successfully created tests.zip from drop\tests directory"
+              $archiveCreated = $true
+              
+              Write-Host "Archived test files:"
+              $testsContents | ForEach-Object { Write-Host "  $($_.FullName)" }
+            } else {
+              Write-Warning "Tests directory exists but is empty"
+            }
+          } else {
+            Write-Warning "Tests directory does not exist in drop folder"
+          }
+          
+          if (-not $archiveCreated) {
+            Write-Error "No valid app or tests directories found to archive"
+            exit 1
+          }
+        } else {
+          Write-Error "Drop directory does not exist"
+          exit 1
+        }
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4.6.2
+      with:
+        name: drop
+        path: ${{ github.workspace }}/${{ github.event.repository.name }}/drop/*.zip
