@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Run Build and Scan
         uses: ./composites/npm-node/build
@@ -72,7 +72,7 @@ jobs:
     environment: dev
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Run Deploy Against Dev
         uses: ./composites/npm-node/deploy
@@ -93,7 +93,7 @@ jobs:
     environment: test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Run Deploy Against Test
         uses: ./composites/npm-node/deploy
@@ -114,7 +114,7 @@ jobs:
     environment: prod
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Run Deploy Against Prod
         uses: ./composites/npm-node/deploy

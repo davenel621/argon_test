@@ -39,7 +39,7 @@ jobs:
           private_key: ${{ secrets.ARGON_AUTHAPP_PRIVATE_KEY }}
 
       - name: Checkout current repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         env:
           REPOSITORY_FULL_NAME: ${{ github.event.repository.full_name }}
           REPOSITORY_NAME: ${{ github.event.repository.name }}
@@ -50,7 +50,7 @@ jobs:
           path: ${{ env.REPOSITORY_NAME }}
 
       - name: Checkout reusable workflow repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ava-client-ussouth-scg-argon/argon-automation
           ref: main
@@ -173,7 +173,7 @@ jobs:
           private_key: ${{ secrets.ARGON_AUTHAPP_PRIVATE_KEY }}
 
       - name: Checkout reusable workflow repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ava-client-ussouth-scg-argon/argon-automation
           ref: main
@@ -322,7 +322,7 @@ jobs:
           private_key: ${{ secrets.ARGON_AUTHAPP_PRIVATE_KEY }}
 
       - name: Checkout reusable workflow repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ava-client-ussouth-scg-argon/argon-automation
           ref: main
