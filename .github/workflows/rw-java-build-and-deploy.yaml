@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       - name: Run Build and Scan
         uses: ./composites/java/build
@@ -63,7 +63,7 @@ jobs:
     environment: dev
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       - name: Run Deploy Against Dev
         uses: ./composites/java/deploy
@@ -82,7 +82,7 @@ jobs:
     environment: test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       - name: Run Deploy Against Test
         uses: ./composites/java/deploy
@@ -101,7 +101,7 @@ jobs:
     environment: prod
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       - name: Run Deploy Against Prod
         uses: ./composites/java/deploy
