@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       - name: Run Build and Scan
         uses: ./composites/ssis-ssrs/build
@@ -53,7 +53,7 @@ jobs:
     environment: dev
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       - name: Run Deploy Against Dev
         uses: ./composites/ssis-ssrs/deploy
@@ -71,7 +71,7 @@ jobs:
     environment: test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       - name: Run Deploy Against Test
         uses: ./composites/ssis-ssrs/deploy
@@ -89,7 +89,7 @@ jobs:
     environment: prod
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       - name: Run Deploy Against Prod
         uses: ./composites/ssis-ssrs/deploy
