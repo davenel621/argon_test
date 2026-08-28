@@ -1,4 +1,4 @@
-name: DOTNET Build and Deploy to IIS
+name: DOTNET Build and Deploy to IIS test
 
 on:
   workflow_call:
