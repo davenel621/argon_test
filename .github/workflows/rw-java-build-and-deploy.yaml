@@ -1,4 +1,4 @@
-name: Build and Deploy Java
+name: Build and Deploy Java test
 
 permissions:
   contents: read
